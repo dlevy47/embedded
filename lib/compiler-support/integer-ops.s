@@ -5,6 +5,8 @@
 .type __aeabi_uidiv, %function
 .type __aeabi_uidivmod, %function
 
+@ ARM Thumb asm translation of https://stackoverflow.com/a/12699549.
+
 .thumb_func
 @ This code also works for division.
 @ u32 __aeabi_uidiv(u32 dividend, u32 divisor)
