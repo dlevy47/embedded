@@ -134,7 +134,7 @@ struct EPDHAL {
 };
 
 struct CRTHAL {
-	int putu8(u8 x) {
+	int print_u8(u8 x) {
 		while (!USART1->status.transmit_empty);
 
 		USART1->transmit = x;
@@ -142,7 +142,7 @@ struct CRTHAL {
 		return 0;
 	}
 
-	int puts(const char* s) {
+	int print_string(const char* s) {
 		while (*s) {
 			while (!USART1->status.transmit_empty);
 

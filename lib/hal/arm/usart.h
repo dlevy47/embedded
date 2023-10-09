@@ -10,7 +10,9 @@ struct usart {
     u32 transmit_enabled:1;
     u32 _reserved2:9;
     u32 mute_enabled:1;
-    u32 _reserved3:17;
+    u32 _reserved3:1;
+    u32 over8:1;
+    u32 _reserved4:15;
   } control1;
 
   // Offset: 0x04

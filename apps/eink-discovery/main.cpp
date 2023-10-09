@@ -1,14 +1,14 @@
 #include "main.hh"
+#include "crt.hh"
 #include "types.h"
 
-#include "crt/crt.hh"
+#include "crt.hh"
 #include "devices/epd/epd.hh"
 #include "hal/arm/stm32l0538.h"
 #include "sys/isr.h"
 #include "sys/init.h"
 #include "sys/scheduler.h"
 
-#include "epd.h"
 #include "picture.h"
 
 u32 color = 0;
@@ -55,24 +55,6 @@ static void epd_test() {
 	epd.refresh_and_wait();
 }
 
-static void puts(const u8* s) {
-	while (*s) {
-		while (!USART1->status.transmit_empty);
-
-		USART1->transmit = *s;
-		++s;
-	}
-}
-
-static int putu8(
-	struct crt_hal* hal,
-	u8 x) {
-	while (!USART1->status.transmit_empty);
-
-	USART1->transmit = x;
-	return 0;
-}
-
 extern "C" void _start() {
 	sys_isr_syscall = syscall_handler;
 
@@ -100,7 +82,6 @@ extern "C" void _start() {
 	// Enable SPI1 and DMA clocks.
 	RCC->apb2_enable.spi1 = 1;
 	RCC->ahb_enable.dma = 1;
-	epd_test();
 
 	// Enable USART1 clock.
 	RCC->apb2_enable.usart1 = 1;
@@ -144,14 +125,25 @@ extern "C" void _start() {
 	// After application of the prescaler, TIMER6's values should be 1/1024 of a second.
 
 	// Configure USART1.
-	USART1->baud_rate.rate = 18; // 0x116;  // Computed for 115200 baud
+	if (USART1->control1.over8) {
+		USART1->baud_rate.rate = 2 * msiclk / 115600;
+	} else {
+		USART1->baud_rate.rate = msiclk / 115600;
+	}
 	USART1->control1.transmit_enabled = 1;
 	USART1->control1.enabled = 1;
 	// USART1->control2.clock_enabled = 1;
-	// These USART configs correspond to 115200 8N1 (assuming MSICLK at reset value of 2MHz).
+	// These USART configs correspond to 115200 8N1.
 
-	crt::print(CRTHAL{}, "msiclk: ", msiclk, ".\n");
-	crt::print(CRTHAL{}, "hello world\n");
+	CRT<CRTHAL> crt;
+
+	crt.print("running epd test\n");
+	epd_test();
+	crt.print("epd test done\n");
+
+	crt.print("msiclk: ", msiclk, ".\n");
+	crt.print("usart1 baud rate: ", USART1->baud_rate.rate, "\n");
+	crt.print("hello world\n");
 
 	NVIC->setenable.line5 = 1;
 	while (1) {
