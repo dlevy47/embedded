@@ -13,6 +13,8 @@ import (
 	"text/template"
 )
 
+var o3 = flag.Bool("o3", false, "whether to optimize build")
+
 type CompileCommand struct {
 	Directory string   `json:"directory"`
 	Arguments []string `json:"arguments"`
@@ -231,6 +233,16 @@ func concat(args ...any) any {
 	return ret.Interface()
 }
 
+func cflags() string {
+	var ret []string
+
+	if *o3 {
+		ret = append(ret, "-O3")
+	}
+
+	return strings.Join(ret, " ")
+}
+
 var sourceExtensions = map[string]bool{
 	".c": true,
 	".s": true,
@@ -238,11 +250,12 @@ var sourceExtensions = map[string]bool{
 
 var makefileTemplate = template.Must(template.New("makefile").Funcs(template.FuncMap{
 	"asm":    asmFile,
+	"cflags": cflags,
 	"object": objectFile,
 	"concat": concat,
 }).Parse(`
 CC=clang
-CFLAGS=-target armv6m-none-eabi -I lib/ -c -mthumb -g -Werror -O3 -Wno-unused-command-line-argument
+CFLAGS=-target armv6m-none-eabi -I lib/ -c -mthumb -g -Werror -Wno-unused-command-line-argument {{cflags}}
 CPPFLAGS=
 
 LD=clang
