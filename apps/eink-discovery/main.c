@@ -112,12 +112,15 @@ void _start() {
 	GPIO_A->mode.pin0 = GPIO_MODE_INPUT;
 
 	// Enable PA8, and PA9 for USART output.
+	// NOTE: It's important to set the alternate function index first, because
+	// otherwise the pin will have a short period when it is enabled, but not
+	// connected to the USART, and spurious data will be sent.
+	GPIO_A->alternate.pin8 = 4;
 	GPIO_A->mode.pin8 = GPIO_MODE_ALTERNATE;
 	GPIO_A->output_type.pin8 = GPIO_OUTPUTTYPE_PUSHPULL;
-	GPIO_A->alternate.pin8 = 4;
+	GPIO_A->alternate.pin9 = 4;
 	GPIO_A->mode.pin9 = GPIO_MODE_ALTERNATE;
 	GPIO_A->output_type.pin9 = GPIO_OUTPUTTYPE_PUSHPULL;
-	GPIO_A->alternate.pin9 = 4;
 
 	// Enable PA5 and PB4 for output.
 	// On the dev board, these correspond to the red and green LEDs.
@@ -150,8 +153,8 @@ void _start() {
 		.putu8 = putu8,
 	};
 	
+	crt_printf(&crt_hal, "msiclk: %u.\n", msiclk);
 	crt_printf(&crt_hal, "hello world\n");
-	crt_printf(&crt_hal, "msiclk: %u\n", msiclk);
 
 	NVIC->setenable.line5 = 1;
 	while (1) {

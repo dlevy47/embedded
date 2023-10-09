@@ -1,6 +1,6 @@
 #include "epd.h"
 
-#include "hal/arm/registers.h"
+#include "hal/arm/stm32l0538.h"
 
 #include "main.h"
 

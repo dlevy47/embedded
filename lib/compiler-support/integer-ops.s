@@ -13,6 +13,9 @@
 __aeabi_uidiv:
 @ struct {u32 q; u32 r;} __aeabi_uidivmod(u32 dividend, u32 divisor)
 __aeabi_uidivmod:
+  @ prologue: save r4, r5, r6 on the stack
+  push {r4, r5, r6}
+
   @ r0 = dividend
   @ r1 = divisor
   @ r2 = i
@@ -85,4 +88,5 @@ next:
   b loop
 
 end:
+  pop {r4, r5, r6}
   bx lr

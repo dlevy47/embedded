@@ -146,6 +146,10 @@ func writeCompileCommands(wd string, libSources []string, apps []App) {
 	}
 }
 
+func asmFile(source string) string {
+	return filepath.Join("build", strings.Replace(source, string(os.PathSeparator), "-", -1)+".s")
+}
+
 func objectFile(source string) string {
 	return filepath.Join("build", strings.Replace(source, string(os.PathSeparator), "-", -1)+".o")
 }
@@ -233,11 +237,13 @@ var sourceExtensions = map[string]bool{
 }
 
 var makefileTemplate = template.Must(template.New("makefile").Funcs(template.FuncMap{
+	"asm":    asmFile,
 	"object": objectFile,
 	"concat": concat,
 }).Parse(`
 CC=clang
-CFLAGS=-target armv6m-none-eabi -I lib/ -c -mthumb -g -Werror
+CFLAGS=-target armv6m-none-eabi -I lib/ -c -mthumb -g -Werror -O3 -Wno-unused-command-line-argument
+CPPFLAGS=
 
 LD=clang
 LDFLAGS=-nostdlib -nodefaultlibs -target armv6m-none-eabi -fno-exceptions -fno-rtti
@@ -251,12 +257,14 @@ all: {{range .Apps}} $(OUTDIR)/{{.Name}} {{end}}
 {{object .}}: {{.}}
 	mkdir -p $(OUTDIR)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+	$(CC) -S -c $(CFLAGS) $(CPPFLAGS) $< -o {{asm .}}
 {{end}}
 
 {{range $a := .Apps}}{{range .Sources}}
 {{object .}}: {{.}}
 	mkdir -p $(OUTDIR)
 	$(CC) -c $(CFLAGS) -I {{$a.Dir}} $(CPPFLAGS) $< -o $@
+	$(CC) -S -c $(CFLAGS) $(CPPFLAGS) $< -o {{asm .}}
 {{end}}{{end}}
 
 clean:
