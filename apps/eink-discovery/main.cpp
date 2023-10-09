@@ -1,7 +1,8 @@
+#include "main.hh"
 #include "types.h"
 
-#include "crt/crt.h"
-#include "devices/epd/epd.h"
+#include "crt/crt.hh"
+#include "devices/epd/epd.hh"
 #include "hal/arm/stm32l0538.h"
 #include "sys/isr.h"
 #include "sys/init.h"
@@ -44,14 +45,14 @@ static void syscall(u8 code) {
 }
 
 static void epd_test() {
-	devices_epd_init(&epd);
-	
-	devices_epd_draw_xbm1pp(
-		&epd,
+	devices::EPD<EPDHAL> epd;
+	epd.init();
+
+	epd.draw_xbm1pp(
 		picture_1,
 		sizeof(picture_1) / sizeof(*picture_1));
 
-	devices_epd_refreshandwait(&epd);
+	epd.refresh_and_wait();
 }
 
 static void puts(const u8* s) {
@@ -72,7 +73,7 @@ static int putu8(
 	return 0;
 }
 
-void _start() {
+extern "C" void _start() {
 	sys_isr_syscall = syscall_handler;
 
 	// syscall(123);
@@ -148,13 +149,9 @@ void _start() {
 	USART1->control1.enabled = 1;
 	// USART1->control2.clock_enabled = 1;
 	// These USART configs correspond to 115200 8N1 (assuming MSICLK at reset value of 2MHz).
-	
-	struct crt_hal crt_hal = {
-		.putu8 = putu8,
-	};
-	
-	crt_printf(&crt_hal, "msiclk: %u.\n", msiclk);
-	crt_printf(&crt_hal, "hello world\n");
+
+	crt::print(CRTHAL{}, "msiclk: ", msiclk, ".\n");
+	crt::print(CRTHAL{}, "hello world\n");
 
 	NVIC->setenable.line5 = 1;
 	while (1) {

@@ -2,6 +2,10 @@
 
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct crt_hal {
   int (*putu8) (
     struct crt_hal* hal,
@@ -25,3 +29,7 @@ int crt_printf(
   struct crt_hal* hal,
   const char* fmt,
   ...);
+
+#ifdef __cplusplus
+}
+#endif

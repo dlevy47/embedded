@@ -13,7 +13,10 @@ import (
 	"text/template"
 )
 
-var o3 = flag.Bool("o3", false, "whether to optimize build")
+var (
+	o3       = flag.Bool("o3", false, "whether to optimize build")
+	parallel = flag.Bool("j", false, "whether to build with -j")
+)
 
 type CompileCommand struct {
 	Directory string   `json:"directory"`
@@ -50,7 +53,16 @@ func main() {
 
 	writeCompileCommands(wd, libSources, apps)
 
-	args := append([]string{"-f", "-"}, flag.Args()...)
+	makeArgs := []string{
+		"-f",
+		"-",
+	}
+
+	if *parallel {
+		makeArgs = append(makeArgs, "-j")
+	}
+
+	args := append(makeArgs, flag.Args()...)
 
 	cmd := exec.Command("make", args...)
 	cmd.Stderr = os.Stderr
@@ -243,20 +255,39 @@ func cflags() string {
 	return strings.Join(ret, " ")
 }
 
+func compiler(source string) string {
+	return map[string]string{
+		".c":   "$(CC)",
+		".cpp": "$(CXX)",
+		".s":   "$(CC)",
+	}[filepath.Ext(source)]
+}
+
+func whichFlags(source string) string {
+	return map[string]string{
+		".c":   "$(CFLAGS)",
+		".cpp": "$(CFLAGS) $(CPPFLAGS)",
+		".s":   "$(CFLAGS)",
+	}[filepath.Ext(source)]
+}
+
 var sourceExtensions = map[string]bool{
-	".c": true,
-	".s": true,
+	".c":   true,
+	".cpp": true,
+	".s":   true,
 }
 
 var makefileTemplate = template.Must(template.New("makefile").Funcs(template.FuncMap{
-	"asm":    asmFile,
-	"cflags": cflags,
-	"object": objectFile,
-	"concat": concat,
+	"asm":        asmFile,
+	"cflags":     cflags,
+	"compiler":   compiler,
+	"concat":     concat,
+	"object":     objectFile,
+	"whichFlags": whichFlags,
 }).Parse(`
 CC=clang
 CFLAGS=-target armv6m-none-eabi -I lib/ -c -mthumb -g -Werror -Wno-unused-command-line-argument {{cflags}}
-CPPFLAGS=
+CPPFLAGS=--std=c++20
 
 LD=clang
 LDFLAGS=-nostdlib -nodefaultlibs -target armv6m-none-eabi -fno-exceptions -fno-rtti
@@ -269,15 +300,15 @@ all: {{range .Apps}} $(OUTDIR)/{{.Name}} {{end}}
 {{range .LibSources}}
 {{object .}}: {{.}}
 	mkdir -p $(OUTDIR)
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
-	$(CC) -S -c $(CFLAGS) $(CPPFLAGS) $< -o {{asm .}}
+	{{compiler .}} -c {{whichFlags .}} $< -o $@
+	{{compiler .}} -S -c {{whichFlags .}} $< -o {{asm .}}
 {{end}}
 
 {{range $a := .Apps}}{{range .Sources}}
 {{object .}}: {{.}}
 	mkdir -p $(OUTDIR)
-	$(CC) -c $(CFLAGS) -I {{$a.Dir}} $(CPPFLAGS) $< -o $@
-	$(CC) -S -c $(CFLAGS) $(CPPFLAGS) $< -o {{asm .}}
+	{{compiler .}} -c {{whichFlags .}} -I {{$a.Dir}} $< -o $@
+	{{compiler .}} -S -c {{whichFlags .}} $< -o {{asm .}}
 {{end}}{{end}}
 
 clean:
