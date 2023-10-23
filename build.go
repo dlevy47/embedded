@@ -176,6 +176,7 @@ func (l STM32L) Binary(app *App) string {
 func (l STM32L) Compiler(source string) string {
 	return map[string]string{
 		".c":   "clang",
+		".cc":  "clang++",
 		".cpp": "clang++",
 		".s":   "clang",
 	}[filepath.Ext(source)]
@@ -442,6 +443,7 @@ func defaultCFlags() []string {
 
 var sourceExtensions = map[string]bool{
 	".c":   true,
+	".cc":  true,
 	".cpp": true,
 	".s":   true,
 }

@@ -1,8 +1,13 @@
 #pragma once
 
+#include "gfx/font.hh"
+#include "gfx/fonts.hh"
 #include "hal/arm/gpio.h"
 #include "hal/arm/registers.h"
 #include "hal/arm/stm32l0538.h"
+#include "std/assert.hh"
+
+namespace mcu = hal::arm::stm32l0538;
 
 template <typename DMAChannelError>
 inline void spi_send(
@@ -80,12 +85,12 @@ inline void spi1_send(
 	const u8* data,
 	u16 len) {
 	// Select the SPI1 functionality on DMA channel 3.
-	DMA->selection.channel3 = DMA_CHANNEL_SELECTION_1;
+	mcu::DMA->selection.channel3 = DMA_CHANNEL_SELECTION_1;
 	
 	spi_send(
-		[] {return DMA->status.transfer_error3;},
-		&DMA->channel3,
-		SPI1,
+		[] {return (bool) mcu::DMA->status.transfer_error3;},
+		&mcu::DMA->channel3,
+		mcu::SPI1,
 		data,
 		len);
 }
@@ -94,12 +99,12 @@ inline void spi2_send(
 	const u8* data,
 	u16 len) {
 	// Select the SPI2 functionality on DMA channel 7.
-	DMA->selection.channel7 = DMA_CHANNEL_SELECTION_3;
+	mcu::DMA->selection.channel7 = DMA_CHANNEL_SELECTION_2;
 	
 	spi_send(
-		[] {return DMA->status.transfer_error7;},
-		&DMA->channel7,
-		SPI2,
+		[] {return (bool) mcu::DMA->status.transfer_error7;},
+		&mcu::DMA->channel7,
+		mcu::SPI2,
 		data,
 		len);
 }
@@ -113,106 +118,41 @@ struct OLEDHAL {
 		// SPI2_MOSI: PB15
 		// RES: PB14
 
-		GPIO_B->mode.pin12 = GPIO_MODE_ALTERNATE; // OLED CS
+		mcu::GPIO_B->mode.pin12 = GPIO_MODE_ALTERNATE; // OLED CS
 
-		GPIO_B->mode.pin7 = GPIO_MODE_OUTPUT; // OLED D/C
-		GPIO_B->output_speed.pin7 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin7 = GPIO_MODE_OUTPUT; // OLED D/C
+		mcu::GPIO_B->output_speed.pin7 = GPIO_OUTPUTSPEED_VERYHIGH;
 
-		GPIO_B->mode.pin13 = GPIO_MODE_ALTERNATE; // OLED SCK
-		GPIO_B->pull.pin13 = 1;
-		GPIO_B->output_speed.pin13 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin13 = GPIO_MODE_ALTERNATE; // OLED SCK
+		mcu::GPIO_B->pull.pin13 = 1;
+		mcu::GPIO_B->output_speed.pin13 = GPIO_OUTPUTSPEED_VERYHIGH;
 
-		GPIO_B->mode.pin15 = GPIO_MODE_ALTERNATE; // OLED MOSI
-		GPIO_B->pull.pin15 = 2;
-		GPIO_B->output_speed.pin15 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin15 = GPIO_MODE_ALTERNATE; // OLED MOSI
+		mcu::GPIO_B->pull.pin15 = 2;
+		mcu::GPIO_B->output_speed.pin15 = GPIO_OUTPUTSPEED_VERYHIGH;
 
-		GPIO_B->mode.pin14 = GPIO_MODE_OUTPUT; // OLED Reset
-		GPIO_B->output_speed.pin14 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin14 = GPIO_MODE_OUTPUT; // OLED Reset
+		mcu::GPIO_B->output_speed.pin14 = GPIO_OUTPUTSPEED_VERYHIGH;
 		
-		GPIO_B->reset14 = 1;
+		mcu::GPIO_B->reset14 = 1;
 
-		GPIO_B->set14 = 1;
+		mcu::GPIO_B->set14 = 1;
 	}
 
 	void set_command() {
 		// D/C low.
-		GPIO_B->reset7 = 1;
+		mcu::GPIO_B->reset7 = 1;
 	}
 
 	void set_data() {
 		// D/C high.
-		GPIO_B->set7 = 1;
+		mcu::GPIO_B->set7 = 1;
 	}
 
 	void send(
 		const u8* data,
 		const u16 len) {
 		spi2_send(data, len);
-	}
-};
-
-template <typename HAL, u16 width, u16 height, u16 page_size_rows>
-struct OLED: public HAL {
-	enum : u8{
-		COMMAND_SETLOWCOLUMNADDRESS = 0x00,
-		COMMAND_SETHIGHCOLUMNADDRESS = 0x10,
-		COMMAND_SETSEGMENTREMAP = 0xA0,
-		COMMAND_FORCEDISPLAYON = 0xA5,
-		COMMAND_DISPLAYON = 0xAF,
-		COMMAND_SETPAGEADDRESS = 0xB0,
-	};
-
-	const u16 page_size_bytes = width * page_size_rows / 8;
-
-	// framebuf is the row-major buffer of data for this screen. The bit for
-	// pixel x, y is framebuf[(y * (width / 8)) + (x / 8)] & (1 << (x % 8)).
-	u8 framebuf[width * height / 8] { 0 };
-	
-	void init() {
-		HAL::init();
-
-		send_command(COMMAND_SETSEGMENTREMAP | 1);
-		send_command(COMMAND_DISPLAYON);
-	}
-
-	void set(
-		const u16 x,
-		const u16 y,
-		const u8 value) {
-		const u16 loc = (y * (width / 8)) + (x / 8);
-		const u8 shift = x % 8;
-		
-		if (value) {
-			framebuf[loc] |= (1 << shift);
-		} else {
-			framebuf[loc] &= ~(1 << shift);
-		}
-	}
-
-	void show() {
-		const u16 pages = height / page_size_rows;
-
-		const u8* page = framebuf;
-		for (u8 i = 0; i < pages; ++i) {
-			send_command(COMMAND_SETPAGEADDRESS | i);
-			send_command(COMMAND_SETLOWCOLUMNADDRESS | 2);
-			send_command(COMMAND_SETHIGHCOLUMNADDRESS | 0);
-
-			send_data(page, page_size_bytes);
-			page += page_size_bytes;
-		}
-	}
-
-	void send_command(const u8 command) {
-		HAL::set_command();
-		HAL::send(&command, sizeof(command));
-	}
-
-	void send_data(
-		const u8* data,
-		const u16 len) {
-		HAL::set_data();
-		HAL::send(data, len);
 	}
 };
 
@@ -250,41 +190,41 @@ struct EPDHAL {
 		//   4. Enable SPI.
 
 		// Configure appropriate GPIO ports for AF0.
-		GPIO_A->mode.pin15 = GPIO_MODE_ALTERNATE; // EPD CS
+		mcu::GPIO_A->mode.pin15 = GPIO_MODE_ALTERNATE; // EPD CS
 
-		GPIO_B->mode.pin11 = GPIO_MODE_OUTPUT; // EPD D/C
-		GPIO_B->output_speed.pin11 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin11 = GPIO_MODE_OUTPUT; // EPD D/C
+		mcu::GPIO_B->output_speed.pin11 = GPIO_OUTPUTSPEED_VERYHIGH;
 
-		GPIO_B->mode.pin3 = GPIO_MODE_ALTERNATE; // EPD SCK
-		GPIO_B->pull.pin3 = 1;
-		GPIO_B->output_speed.pin3 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin3 = GPIO_MODE_ALTERNATE; // EPD SCK
+		mcu::GPIO_B->pull.pin3 = 1;
+		mcu::GPIO_B->output_speed.pin3 = GPIO_OUTPUTSPEED_VERYHIGH;
 
-		GPIO_B->mode.pin5 = GPIO_MODE_ALTERNATE; // EPD SDIN
-		GPIO_B->pull.pin5 = 2;
-		GPIO_B->output_speed.pin5 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin5 = GPIO_MODE_ALTERNATE; // EPD SDIN
+		mcu::GPIO_B->pull.pin5 = 2;
+		mcu::GPIO_B->output_speed.pin5 = GPIO_OUTPUTSPEED_VERYHIGH;
 
-		GPIO_A->mode.pin8 = GPIO_MODE_INPUT; // EPD Busy
-		GPIO_A->pull.pin8 = 2;
+		mcu::GPIO_A->mode.pin8 = GPIO_MODE_INPUT; // EPD Busy
+		mcu::GPIO_A->pull.pin8 = 2;
 
-		GPIO_B->mode.pin10 = GPIO_MODE_OUTPUT; // EPD Power
-		GPIO_B->output_speed.pin10 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin10 = GPIO_MODE_OUTPUT; // EPD Power
+		mcu::GPIO_B->output_speed.pin10 = GPIO_OUTPUTSPEED_VERYHIGH;
 
-		GPIO_B->mode.pin2 = GPIO_MODE_OUTPUT; // EPD Reset
-		GPIO_B->output_speed.pin2 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin2 = GPIO_MODE_OUTPUT; // EPD Reset
+		mcu::GPIO_B->output_speed.pin2 = GPIO_OUTPUTSPEED_VERYHIGH;
 
 		// Enable EPD power, and send a reset.
-		GPIO_B->reset10 = 1;
-		GPIO_B->set2 = 1;
+		mcu::GPIO_B->reset10 = 1;
+		mcu::GPIO_B->set2 = 1;
 	}
 
 	void set_data() {
 			// Data: D/C high.
-		GPIO_B->set11 = 1;
+		mcu::GPIO_B->set11 = 1;
 	}
 
 	void set_command() {
 		// Command: D/C low.
-		GPIO_B->reset11 = 1;
+		mcu::GPIO_B->reset11 = 1;
 	}
 
 	void send(
@@ -294,24 +234,24 @@ struct EPDHAL {
 	}
 
 	void wait() {
-		while (GPIO_A->input.pin8);
+		while (mcu::GPIO_A->input.pin8);
 	}
 };
 
 struct CRTHAL {
 	int print_u8(u8 x) {
-		while (!USART1->status.transmit_empty);
+		while (!mcu::USART1->status.transmit_empty);
 
-		USART1->transmit = x;
+		mcu::USART1->transmit = x;
 		
 		return 0;
 	}
 
 	int print_string(const char* s) {
 		while (*s) {
-			while (!USART1->status.transmit_empty);
+			while (!mcu::USART1->status.transmit_empty);
 
-			USART1->transmit = (u8) *s;
+			mcu::USART1->transmit = (u8) *s;
 			++s;
 		}
 

@@ -3,6 +3,7 @@
 #include "types.h"
 
 namespace devices {
+namespace epd {
 
 // epd_lut is the LUT sent to the EPD on initialization.
 extern "C" const u8 epd_lut[90];
@@ -145,4 +146,5 @@ struct EPD: public HAL {
   }
 };
 
+}
 };

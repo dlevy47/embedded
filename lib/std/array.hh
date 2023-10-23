@@ -6,7 +6,7 @@ namespace std {
 
 template <typename T, size_t N>
 struct Array {
-  T[N] ts;
+  T values[N];
 };
 
 };

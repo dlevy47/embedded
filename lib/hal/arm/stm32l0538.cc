@@ -3,6 +3,12 @@
 #include "types.h"
 #include "stm32l0538.h"
 
+#ifdef __cplusplus
+namespace hal {
+namespace arm {
+namespace stm32l0538 {
+#endif
+
 MCU_DEFINE_REGISTER(0x40001000, TIMER6, struct timerx);
 MCU_DEFINE_REGISTER(0x40007000, PWR_CR, struct pwr_cr);
 MCU_DEFINE_REGISTER(0x40003800, SPI2, struct spi);
@@ -17,3 +23,9 @@ MCU_DEFINE_REGISTER(0x50000400, GPIO_B, struct gpio);
 MCU_DEFINE_REGISTER(0xE000E100, NVIC, struct nvic);
 MCU_DEFINE_REGISTER(0xE000E100, MPU, struct mpu);
 MCU_DEFINE_REGISTER(0xE000ED00, SCB, struct scb);
+
+#ifdef __cplusplus
+}
+}
+}
+#endif
