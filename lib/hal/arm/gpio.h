@@ -14,6 +14,13 @@ enum gpio_outputtype: u32 {
 	GPIO_OUTPUTTYPE_OPENDRAIN = 0b1,
 };
 
+enum gpio_outputspeed: u32 {
+	GPIO_OUTPUTSPEED_LOW = 0b00,
+	GPIO_OUTPUTSPEED_MEDIUM = 0b01,
+	GPIO_OUTPUTSPEED_HIGH = 0b10,
+	GPIO_OUTPUTSPEED_VERYHIGH = 0b11,
+};
+
 struct gpio {
 	// Offset: 0x00
 	struct {
@@ -58,22 +65,22 @@ struct gpio {
 
 	// Offset: 0x08
 	struct {
-		u32 pin0:2;
-		u32 pin1:2;
-		u32 pin2:2;
-		u32 pin3:2;
-		u32 pin4:2;
-		u32 pin5:2;
-		u32 pin6:2;
-		u32 pin7:2;
-		u32 pin8:2;
-		u32 pin9:2;
-		u32 pin10:2;
-		u32 pin11:2;
-		u32 pin12:2;
-		u32 pin13:2;
-		u32 pin14:2;
-		u32 pin15:2;
+		enum gpio_outputspeed pin0:2;
+		enum gpio_outputspeed pin1:2;
+		enum gpio_outputspeed pin2:2;
+		enum gpio_outputspeed pin3:2;
+		enum gpio_outputspeed pin4:2;
+		enum gpio_outputspeed pin5:2;
+		enum gpio_outputspeed pin6:2;
+		enum gpio_outputspeed pin7:2;
+		enum gpio_outputspeed pin8:2;
+		enum gpio_outputspeed pin9:2;
+		enum gpio_outputspeed pin10:2;
+		enum gpio_outputspeed pin11:2;
+		enum gpio_outputspeed pin12:2;
+		enum gpio_outputspeed pin13:2;
+		enum gpio_outputspeed pin14:2;
+		enum gpio_outputspeed pin15:2;
 	} output_speed;
 
 	// Offset: 0x0C

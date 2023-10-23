@@ -34,7 +34,7 @@ enum error sys_scheduler_init(
 
   // Start our task stacks after our OS stack.
   // Stacks grow downwards according to the ARM ABI.
-  u32* stack_top = (u32*) (ld_stack_top - (256 * B));
+  u32* stack_top = (u32*) (ld_stack_top - 256);
   
   while (tasks->descriptor) {
     enum error err = ERROR_OK;

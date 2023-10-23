@@ -24,26 +24,6 @@ static void delay(u32 mibis) {
 	TIMER6->control1.one_pulse_mode = 1;
 }
 
-static void syscall_handler(u8 code) {
-	// Do a no-op sort of thing here.
-	RCC->gpio_enable.a = 1;
-}
-
-static void syscall(u8 code) {
-	asm volatile (
-		// We can't combine the pushes here since we require specific ordering.
-		"push {%0}\n"
-		"push {%1}\n"
-
-		"svc 1\n"
-
-		// Clean up after ourselves.
-		"add sp, #8\n"
-		:
-		: "r" (code), "r" (&_sys_isr_syscall_interruptedframe)
-		);
-}
-
 static void epd_test() {
 	devices::EPD<EPDHAL> epd;
 	epd.init();
@@ -56,10 +36,6 @@ static void epd_test() {
 }
 
 extern "C" void _start() {
-	sys_isr_syscall = syscall_handler;
-
-	// syscall(123);
-
 	sys_isr_uservector[5] = button_handler;
 
 	// For UART, configure 115200 8N1:
@@ -79,7 +55,8 @@ extern "C" void _start() {
 	RCC->gpio_enable.a = 1;
 	RCC->gpio_enable.b = 1;
 
-	// Enable SPI1 and DMA clocks.
+	// Enable SPI1, SPI2, and DMA clocks.
+	RCC->apb1_enable.spi2 = 1;
 	RCC->apb2_enable.spi1 = 1;
 	RCC->ahb_enable.dma = 1;
 
@@ -108,6 +85,9 @@ extern "C" void _start() {
 	// On the dev board, these correspond to the red and green LEDs.
 	GPIO_A->mode.pin5 = GPIO_MODE_OUTPUT;
 	GPIO_B->mode.pin4 = GPIO_MODE_OUTPUT;
+	
+	GPIO_B->mode.pin6 = GPIO_MODE_OUTPUT;
+	GPIO_B->output_speed.pin6 = GPIO_OUTPUTSPEED_VERYHIGH;
 
 	// TIMER6 is an APB1 peripheral, and so uses the PCLK1 clock source.
 	// The PCLK1 frequency is the prescaled HCLK frequency.
@@ -137,13 +117,31 @@ extern "C" void _start() {
 
 	CRT<CRTHAL> crt;
 
-	crt.print("running epd test\n");
-	epd_test();
-	crt.print("epd test done\n");
+	crt.print("running oled test\r\n");
+	OLED<OLEDHAL, 128, 64, 8> oled;
+	oled.init();
 
-	crt.print("msiclk: ", msiclk, ".\n");
-	crt.print("usart1 baud rate: ", USART1->baud_rate.rate, "\n");
-	crt.print("hello world\n");
+	const u16 center_x = 64;
+	const u16 center_y = 32;
+	const u16 width = 10;
+	const u16 height = 10;
+
+	u16 y = center_y - (height / 2);
+	for (u16 x = center_x - (width / 2); x < center_x + (width / 2); ++x) {
+		crt.print("setting ", x, ", ", y, "\r\n");
+		oled.set(x, y, 1);
+	}
+	
+	oled.show();
+	crt.print("oled test done\r\n");
+
+	crt.print("running epd test\r\n");
+	epd_test();
+	crt.print("epd test done\r\n");
+
+	crt.print("msiclk: ", msiclk, ".\r\n");
+	crt.print("usart1 baud rate: ", USART1->baud_rate.rate, "\r\n");
+	crt.print("hello world\r\n");
 
 	NVIC->setenable.line5 = 1;
 	while (1) {

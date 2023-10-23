@@ -22,7 +22,7 @@ typedef u32 duration_t;
 // #define is used to make them integer width independent.
 
 // B is bytes.
-#define B ((size_t) 1)
+// #define B ((size_t) 1)
 
 // KB is kilobytes.
 #define KB ((size_t) 1024)

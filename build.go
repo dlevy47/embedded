@@ -8,15 +8,182 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"text/template"
+
+	"github.com/google/shlex"
 )
 
 var (
+	dryRun   = flag.Bool("dry-run", false, "don't build, just print makefile")
 	o3       = flag.Bool("o3", false, "whether to optimize build")
+	outdir   = flag.String("outdir", "build/", "where to place build artifacts")
 	parallel = flag.Bool("j", false, "whether to build with -j")
 )
+
+type Target interface {
+	Name() string
+	Dir() string
+	Sources() []string
+	Deps() []string
+}
+
+type Platform interface {
+	AssemblyFile(source string) string
+	DependenciesFile(source string) string
+	ObjectFile(source string) string
+	Library(name string) string
+
+	CompileFlags(source string, target Target) string
+	AssembleFlags(source string, target Target) string
+	DependenciesFlags(source string) string
+	LinkFlags(app *App) string
+
+	Binary(app *App) string
+
+	Compiler(source string) string
+	Linker() string
+}
+
+type STM32L struct{}
+
+func (STM32L) AssemblyFile(source string) string {
+	return filepath.Join(*outdir, strings.Replace(source, string(os.PathSeparator), "-", -1)+".stm32l.s")
+}
+
+func (STM32L) DependenciesFile(source string) string {
+	if filepath.Ext(source) == ".s" {
+		return ""
+	}
+
+	return filepath.Join(*outdir, strings.Replace(source, string(os.PathSeparator), "-", -1)+".stm32l.d")
+}
+
+func (STM32L) ObjectFile(source string) string {
+	return filepath.Join(*outdir, strings.Replace(source, string(os.PathSeparator), "-", -1)+".stm32l.o")
+}
+
+func (STM32L) Library(name string) string {
+	return filepath.Join(*outdir, fmt.Sprintf("lib%s.stm32l.a", name))
+}
+
+func (STM32L) CFlags() []string {
+	return append([]string{
+		"-target",
+		"armv6m-none-eabi",
+		"-mthumb",
+		"-g",
+		"-Werror",
+		"-nostdlib",
+		"-nodefaultlibs",
+		"-Wno-unused-command-line-argument",
+	}, defaultCFlags()...)
+}
+
+func (l STM32L) CCFlags() []string {
+	flags := append(l.CFlags(), defaultCFlags()...)
+	return append(flags, "--std=c++20")
+}
+
+func (l STM32L) CompileFlags(source string, target Target) string {
+	var flags []string
+
+	switch filepath.Ext(source) {
+	case ".c":
+		flags = l.CFlags()
+	case ".cc":
+		flags = l.CCFlags()
+	case ".cpp":
+		flags = l.CCFlags()
+	case ".s":
+		flags = l.CFlags()
+	default:
+		panic("unsupported source " + source)
+	}
+
+	for _, dep := range target.Deps() {
+		flags = append(flags, "-I", dep)
+	}
+
+	flags = append(flags, "-I", target.Dir())
+	flags = append(flags, "-c", source, "-o", l.ObjectFile(source))
+
+	return strings.Join(flags, " ")
+}
+
+func (l STM32L) AssembleFlags(source string, target Target) string {
+	var flags []string
+
+	switch filepath.Ext(source) {
+	case ".c":
+		flags = l.CFlags()
+	case ".cc":
+		flags = l.CCFlags()
+	case ".cpp":
+		flags = l.CCFlags()
+	case ".s":
+		flags = l.CFlags()
+	default:
+		panic("unsupported source " + source)
+	}
+
+	for _, dep := range target.Deps() {
+		flags = append(flags, "-I", dep)
+	}
+
+	flags = append(flags, "-I", target.Dir())
+	flags = append(flags, "-S", source, "-o", l.AssemblyFile(source))
+
+	return strings.Join(flags, " ")
+}
+
+func (l STM32L) DependenciesFlags(source string) string {
+	if filepath.Ext(source) == ".s" {
+		return ""
+	}
+
+	return strings.Join(
+		[]string{
+			"-MT",
+			l.ObjectFile(source),
+			"-MMD",
+			"-MP",
+			"-MF",
+			l.DependenciesFile(source),
+		},
+		" ",
+	)
+}
+
+func (l STM32L) LinkFlags(app *App) string {
+	return strings.Join(
+		[]string{
+			"-nostdlib",
+			"-nodefaultlibs",
+			"-target armv6m-none-eabi",
+			"-fno-exceptions",
+			"-fno-rtti",
+			"-o",
+			l.Binary(app),
+		},
+		" ")
+}
+
+func (l STM32L) Binary(app *App) string {
+	return filepath.Join(*outdir, fmt.Sprintf("%s.stm32l.exe", app.name))
+}
+
+func (l STM32L) Compiler(source string) string {
+	return map[string]string{
+		".c":   "clang",
+		".cpp": "clang++",
+		".s":   "clang",
+	}[filepath.Ext(source)]
+}
+
+func (l STM32L) Linker() string {
+	return "clang"
+}
 
 type CompileCommand struct {
 	Directory string   `json:"directory"`
@@ -25,10 +192,55 @@ type CompileCommand struct {
 }
 
 type App struct {
-	Dir     string
-	Name    string
-	Sources []string
-	Objects []string
+	dir     string
+	name    string
+	sources []string
+	deps    []string
+}
+
+func (l *App) Name() string {
+	return l.name
+}
+
+func (l *App) Dir() string {
+	return l.dir
+}
+
+func (l *App) Sources() []string {
+	return l.sources
+}
+
+func (l *App) Deps() []string {
+	return l.deps
+}
+
+type Lib struct {
+	dir     string
+	name    string
+	sources []string
+	deps    []string
+}
+
+func (l *Lib) Name() string {
+	return l.name
+}
+
+func (l *Lib) Dir() string {
+	return l.dir
+}
+
+func (l *Lib) Sources() []string {
+	return l.sources
+}
+
+func (l *Lib) Deps() []string {
+	return l.deps
+}
+
+type Source struct {
+	P Platform
+	S string
+	T Target
 }
 
 func main() {
@@ -39,19 +251,24 @@ func main() {
 		panic(err)
 	}
 
+	lib := &Lib{
+		name:    "lib",
+		dir:     "lib",
+		sources: findSources("lib"),
+	}
+
+	libs := []*Lib{lib}
+
 	apps, err := findApps("apps")
 	if err != nil {
 		panic(err)
 	}
 
-	libSources := findSources("lib")
-
-	var libObjects []string
-	for _, source := range libSources {
-		libObjects = append(libObjects, objectFile(source))
+	for _, app := range apps {
+		app.deps = append(app.deps, "lib")
 	}
 
-	writeCompileCommands(wd, libSources, apps)
+	writeCompileCommands(STM32L{}, wd, libs, apps)
 
 	makeArgs := []string{
 		"-f",
@@ -64,89 +281,59 @@ func main() {
 
 	args := append(makeArgs, flag.Args()...)
 
-	cmd := exec.Command("make", args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	if !*dryRun {
+		cmd := exec.Command("make", args...)
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
 
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		panic(err)
-	}
-
-	go func() {
-		defer stdin.Close()
-
-		data := map[string]any{
-			"Apps":       apps,
-			"LibSources": libSources,
-		}
-		if err := makefileTemplate.Execute(stdin, data); err != nil {
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
 			panic(err)
 		}
-	}()
 
-	if err := cmd.Run(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok {
-			fmt.Fprintf(os.Stderr, "exit code: %d\n", exit.ExitCode())
+		go func() {
+			defer stdin.Close()
+
+			data := map[string]any{
+				"Apps":   apps,
+				"Libs":   libs,
+				"Outdir": *outdir,
+				"P":      STM32L{},
+			}
+			if err := makefileTemplate.Execute(stdin, data); err != nil {
+				panic(err)
+			}
+		}()
+
+		if err := cmd.Run(); err != nil {
+			if exit, ok := err.(*exec.ExitError); ok {
+				fmt.Fprintf(os.Stderr, "exit code: %d\n", exit.ExitCode())
+			}
+		}
+	} else {
+		fmt.Printf("DRY RUN: make %v\n", args)
+
+		data := map[string]any{
+			"Apps":   apps,
+			"Libs":   libs,
+			"Outdir": *outdir,
+			"P":      STM32L{},
+		}
+		if err := makefileTemplate.Execute(os.Stdout, data); err != nil {
+			panic(err)
 		}
 	}
 }
 
-func writeCompileCommands(wd string, libSources []string, apps []App) {
-	var compileCommands []CompileCommand
+func writeCompileCommands(p Platform, wd string, libs []*Lib, apps []*App) {
+	var commands []CompileCommand
 
-	for _, source := range libSources {
-		object := objectFile(source)
-
-		compileCommands = append(compileCommands, CompileCommand{
-			Directory: wd,
-			Arguments: []string{
-				"clang",
-				"-target",
-				"armv6m-none-eabi",
-				"-I",
-				"lib/",
-				"-mthumb",
-				"-g",
-				"-Werror",
-				"-c",
-				source,
-				"-o",
-				object,
-			},
-			File: source,
-		})
-
-		fmt.Fprintf(os.Stderr, "%s => %s\n", source, object)
+	for _, lib := range libs {
+		commands = append(commands, compileCommands(p, wd, lib)...)
 	}
 
 	for _, app := range apps {
-		for _, source := range app.Sources {
-			object := objectFile(source)
-
-			compileCommands = append(compileCommands, CompileCommand{
-				Directory: wd,
-				Arguments: []string{
-					"clang",
-					"-target",
-					"armv6m-none-eabi",
-					"-I",
-					"lib/",
-					"-I",
-					app.Dir,
-					"-mthumb",
-					"-g",
-					"-Werror",
-					"-c",
-					source,
-					"-o",
-					object,
-				},
-				File: source,
-			})
-
-			fmt.Fprintf(os.Stderr, "%s => %s\n", source, object)
-		}
+		commands = append(commands, compileCommands(p, wd, app)...)
 	}
 
 	outf, err := os.Create("compile_commands.json")
@@ -155,21 +342,44 @@ func writeCompileCommands(wd string, libSources []string, apps []App) {
 	}
 	defer outf.Close()
 
-	if err := json.NewEncoder(outf).Encode(compileCommands); err != nil {
+	if err := json.NewEncoder(outf).Encode(commands); err != nil {
 		panic(err)
 	}
 }
 
-func asmFile(source string) string {
-	return filepath.Join("build", strings.Replace(source, string(os.PathSeparator), "-", -1)+".s")
+func compileCommands(p Platform, wd string, target Target) []CompileCommand {
+	var commands []CompileCommand
+
+	for _, source := range target.Sources() {
+		object := p.ObjectFile(source)
+
+		args := []string{
+			p.Compiler(source),
+			"-c",
+			source,
+			"-o",
+			object,
+		}
+
+		flags, err := shlex.Split(p.CompileFlags(source, target))
+		if err != nil {
+			panic(err)
+		}
+
+		args = append(args, flags...)
+
+		commands = append(commands, CompileCommand{
+			Directory: wd,
+			Arguments: args,
+			File:      source,
+		})
+	}
+
+	return commands
 }
 
-func objectFile(source string) string {
-	return filepath.Join("build", strings.Replace(source, string(os.PathSeparator), "-", -1)+".o")
-}
-
-func findApps(dirs ...string) ([]App, error) {
-	var apps []App
+func findApps(dirs ...string) ([]*App, error) {
+	var apps []*App
 	for _, dir := range dirs {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -180,16 +390,10 @@ func findApps(dirs ...string) ([]App, error) {
 			appDir := filepath.Join(dir, entry.Name())
 			sources := findSources(appDir)
 
-			var objects []string
-			for _, source := range sources {
-				objects = append(objects, objectFile(source))
-			}
-
-			apps = append(apps, App{
-				Dir:     appDir,
-				Name:    entry.Name(),
-				Sources: sources,
-				Objects: objects,
+			apps = append(apps, &App{
+				dir:     appDir,
+				name:    entry.Name(),
+				sources: sources,
 			})
 		}
 	}
@@ -226,49 +430,14 @@ func findSources(dirs ...string) []string {
 	return sources
 }
 
-func concat(args ...any) any {
-	if len(args) == 0 {
-		return []string{}
-	}
-
-	ty := reflect.TypeOf(args[0])
-	ret := reflect.MakeSlice(ty, 0, len(args))
-
-	for _, arg := range args {
-		if reflect.TypeOf(arg) != ty {
-			panic(fmt.Sprintf("invalid concat arg type: got %v want %v", reflect.TypeOf(arg), ty))
-		}
-
-		ret = reflect.Append(ret, reflect.ValueOf(arg))
-	}
-
-	return ret.Interface()
-}
-
-func cflags() string {
+func defaultCFlags() []string {
 	var ret []string
 
 	if *o3 {
 		ret = append(ret, "-O3")
 	}
 
-	return strings.Join(ret, " ")
-}
-
-func compiler(source string) string {
-	return map[string]string{
-		".c":   "$(CC)",
-		".cpp": "$(CXX)",
-		".s":   "$(CC)",
-	}[filepath.Ext(source)]
-}
-
-func whichFlags(source string) string {
-	return map[string]string{
-		".c":   "$(CFLAGS)",
-		".cpp": "$(CFLAGS) $(CPPFLAGS)",
-		".s":   "$(CFLAGS)",
-	}[filepath.Ext(source)]
+	return ret
 }
 
 var sourceExtensions = map[string]bool{
@@ -278,45 +447,50 @@ var sourceExtensions = map[string]bool{
 }
 
 var makefileTemplate = template.Must(template.New("makefile").Funcs(template.FuncMap{
-	"asm":        asmFile,
-	"cflags":     cflags,
-	"compiler":   compiler,
-	"concat":     concat,
-	"object":     objectFile,
-	"whichFlags": whichFlags,
+	"source": func(platform Platform, source string, target Target) Source {
+		return Source{platform, source, target}
+	},
 }).Parse(`
-CC=clang
-CFLAGS=-target armv6m-none-eabi -I lib/ -c -mthumb -g -Werror -Wno-unused-command-line-argument {{cflags}}
-CPPFLAGS=--std=c++20
-
-LD=clang
-LDFLAGS=-nostdlib -nodefaultlibs -target armv6m-none-eabi -fno-exceptions -fno-rtti
-
-OUTDIR = build/
-
-all: {{range .Apps}} $(OUTDIR)/{{.Name}} {{end}}
-.PHONY: all
-
-{{range .LibSources}}
-{{object .}}: {{.}}
-	mkdir -p $(OUTDIR)
-	{{compiler .}} -c {{whichFlags .}} $< -o $@
-	{{compiler .}} -S -c {{whichFlags .}} $< -o {{asm .}}
+{{define "compile"}}
+{{if $.P.DependenciesFile $.S}}
+{{$.P.DependenciesFile $.S}}:
 {{end}}
 
-{{range $a := .Apps}}{{range .Sources}}
-{{object .}}: {{.}}
+{{$.P.ObjectFile $.S}}: {{$.S}}
+{{$.P.ObjectFile $.S}}: {{$.S}} {{$.P.DependenciesFile $.S}}
 	mkdir -p $(OUTDIR)
-	{{compiler .}} -c {{whichFlags .}} -I {{$a.Dir}} $< -o $@
-	{{compiler .}} -S -c {{whichFlags .}} $< -o {{asm .}}
-{{end}}{{end}}
+	{{$.P.Compiler $.S}} {{$.P.CompileFlags $.S $.T}} {{$.P.DependenciesFlags $.S}}
+	{{$.P.Compiler $.S}} {{$.P.AssembleFlags $.S $.T}}
+{{end}}
+OUTDIR={{$.Outdir}}
+	
+all: {{range .Apps}} {{$.P.Binary .}} {{end}}
+.PHONY: all
+
+{{range $l := .Libs}}
+{{range .Sources}}
+{{template "compile" source $.P . $l}}
+{{end}}
+
+{{$.P.Library .Name}}: {{range .Sources}} {{$.P.ObjectFile .}} {{end}}
+	rm -rf {{$.P.Library .Name}}; ar rcs {{$.P.Library .Name}} $^
+	
+{{end}}
+
+{{range $a := .Apps}}
+{{range .Sources}}
+{{template "compile" source $.P . $a}}
+{{end}}
+{{end}}
 
 clean:
 	rm -rf $(OUTDIR)
 
 {{range $a := .Apps}}
-$(OUTDIR)/{{.Name}}: {{$a.Dir}}/app.ld {{range .Sources}} {{object .}} {{end}} {{range $.LibSources}} {{object . }} {{end}}
+{{$.P.Binary .}}: {{$a.Dir}}/app.ld {{range .Sources}} {{$.P.ObjectFile .}} {{end}} {{range .Deps}} {{$.P.Library .}} {{end}}
 	mkdir -p $(OUTDIR)
-	$(LD) $(LDFLAGS) -o $@ $^
+	{{$.P.Linker}} {{$.P.LinkFlags $a}} $^
 {{end}}
+
+include $(wildcard $(OUTDIR)/*.d)
 `))

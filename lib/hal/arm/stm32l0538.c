@@ -3,10 +3,9 @@
 #include "types.h"
 #include "stm32l0538.h"
 
-#define MCU_DEFINE_REGISTER(address, name, type) volatile type* const name = (volatile type* const) address
-
 MCU_DEFINE_REGISTER(0x40001000, TIMER6, struct timerx);
 MCU_DEFINE_REGISTER(0x40007000, PWR_CR, struct pwr_cr);
+MCU_DEFINE_REGISTER(0x40003800, SPI2, struct spi);
 MCU_DEFINE_REGISTER(0x40010400, EXTI, struct exti);
 MCU_DEFINE_REGISTER(0x40013000, SPI1, struct spi);
 MCU_DEFINE_REGISTER(0x40013800, USART1, struct usart);

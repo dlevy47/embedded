@@ -23,7 +23,7 @@ struct CRT: public HAL {
       div *= 10;
     }
 
-    while (u > 0) {
+    while (div > 0) {
       u32 digit = u / div;
       u -= digit * div;
       div /= 10;
