@@ -2,9 +2,8 @@
 
 #include "gfx/font.hh"
 #include "gfx/fonts.hh"
-#include "hal/arm/gpio.h"
-#include "hal/arm/registers.h"
-#include "hal/arm/stm32l0538.h"
+#include "hal/arm/registers.hh"
+#include "hal/arm/stm32l0538.hh"
 #include "std/assert.hh"
 
 namespace mcu = hal::arm::stm32l0538;
@@ -12,8 +11,8 @@ namespace mcu = hal::arm::stm32l0538;
 template <typename DMAChannelError>
 inline void spi_send(
 	DMAChannelError channel_error,
-	volatile struct dma_channel* channel,
-	volatile struct spi* spi,
+	volatile hal::arm::DMA::Channel* channel,
+	volatile hal::arm::SPI* spi,
 	const u8* data,
 	u16 len) {
 	// Non-DMA path:
@@ -85,7 +84,7 @@ inline void spi1_send(
 	const u8* data,
 	u16 len) {
 	// Select the SPI1 functionality on DMA channel 3.
-	mcu::DMA->selection.channel3 = DMA_CHANNEL_SELECTION_1;
+	mcu::DMA->selection.channel3 = hal::arm::DMA::Channel::Selection::SELECTION_1;
 	
 	spi_send(
 		[] {return (bool) mcu::DMA->status.transfer_error3;},
@@ -99,7 +98,7 @@ inline void spi2_send(
 	const u8* data,
 	u16 len) {
 	// Select the SPI2 functionality on DMA channel 7.
-	mcu::DMA->selection.channel7 = DMA_CHANNEL_SELECTION_2;
+	mcu::DMA->selection.channel7 = hal::arm::DMA::Channel::Selection::SELECTION_2;
 	
 	spi_send(
 		[] {return (bool) mcu::DMA->status.transfer_error7;},
@@ -118,21 +117,21 @@ struct OLEDHAL {
 		// SPI2_MOSI: PB15
 		// RES: PB14
 
-		mcu::GPIO_B->mode.pin12 = GPIO_MODE_ALTERNATE; // OLED CS
+		mcu::GPIO_B->mode.pin12 = hal::arm::GPIO::Mode::ALTERNATE; // OLED CS
 
-		mcu::GPIO_B->mode.pin7 = GPIO_MODE_OUTPUT; // OLED D/C
-		mcu::GPIO_B->output_speed.pin7 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin7 = hal::arm::GPIO::Mode::OUTPUT; // OLED D/C
+		mcu::GPIO_B->output_speed.pin7 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin13 = GPIO_MODE_ALTERNATE; // OLED SCK
+		mcu::GPIO_B->mode.pin13 = hal::arm::GPIO::Mode::ALTERNATE; // OLED SCK
 		mcu::GPIO_B->pull.pin13 = 1;
-		mcu::GPIO_B->output_speed.pin13 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->output_speed.pin13 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin15 = GPIO_MODE_ALTERNATE; // OLED MOSI
+		mcu::GPIO_B->mode.pin15 = hal::arm::GPIO::Mode::ALTERNATE; // OLED MOSI
 		mcu::GPIO_B->pull.pin15 = 2;
-		mcu::GPIO_B->output_speed.pin15 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->output_speed.pin15 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin14 = GPIO_MODE_OUTPUT; // OLED Reset
-		mcu::GPIO_B->output_speed.pin14 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin14 = hal::arm::GPIO::Mode::OUTPUT; // OLED Reset
+		mcu::GPIO_B->output_speed.pin14 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 		
 		mcu::GPIO_B->reset14 = 1;
 
@@ -190,27 +189,27 @@ struct EPDHAL {
 		//   4. Enable SPI.
 
 		// Configure appropriate GPIO ports for AF0.
-		mcu::GPIO_A->mode.pin15 = GPIO_MODE_ALTERNATE; // EPD CS
+		mcu::GPIO_A->mode.pin15 = hal::arm::GPIO::Mode::ALTERNATE; // EPD CS
 
-		mcu::GPIO_B->mode.pin11 = GPIO_MODE_OUTPUT; // EPD D/C
-		mcu::GPIO_B->output_speed.pin11 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin11 = hal::arm::GPIO::Mode::OUTPUT; // EPD D/C
+		mcu::GPIO_B->output_speed.pin11 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin3 = GPIO_MODE_ALTERNATE; // EPD SCK
+		mcu::GPIO_B->mode.pin3 = hal::arm::GPIO::Mode::ALTERNATE; // EPD SCK
 		mcu::GPIO_B->pull.pin3 = 1;
-		mcu::GPIO_B->output_speed.pin3 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->output_speed.pin3 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin5 = GPIO_MODE_ALTERNATE; // EPD SDIN
+		mcu::GPIO_B->mode.pin5 = hal::arm::GPIO::Mode::ALTERNATE; // EPD SDIN
 		mcu::GPIO_B->pull.pin5 = 2;
-		mcu::GPIO_B->output_speed.pin5 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->output_speed.pin5 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_A->mode.pin8 = GPIO_MODE_INPUT; // EPD Busy
+		mcu::GPIO_A->mode.pin8 = hal::arm::GPIO::Mode::INPUT; // EPD Busy
 		mcu::GPIO_A->pull.pin8 = 2;
 
-		mcu::GPIO_B->mode.pin10 = GPIO_MODE_OUTPUT; // EPD Power
-		mcu::GPIO_B->output_speed.pin10 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin10 = hal::arm::GPIO::Mode::OUTPUT; // EPD Power
+		mcu::GPIO_B->output_speed.pin10 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin2 = GPIO_MODE_OUTPUT; // EPD Reset
-		mcu::GPIO_B->output_speed.pin2 = GPIO_OUTPUTSPEED_VERYHIGH;
+		mcu::GPIO_B->mode.pin2 = hal::arm::GPIO::Mode::OUTPUT; // EPD Reset
+		mcu::GPIO_B->output_speed.pin2 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
 		// Enable EPD power, and send a reset.
 		mcu::GPIO_B->reset10 = 1;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
 
 const u8 epd_lookup[256 * 2] = {
   /* p = 0x00 */ 0xFF, 0xFF,

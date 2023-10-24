@@ -1,8 +1,11 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
 
-struct spi {
+namespace hal {
+namespace arm {
+
+struct SPI {
 	struct {
 		u16 first_data_clock_phase:1;
 		u16 idle_clock_polarity:1;
@@ -56,3 +59,6 @@ struct spi {
 	// Offset: 0x0C
 	u16 data;
 };
+
+}
+}

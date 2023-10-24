@@ -1,12 +1,15 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
+
+namespace hal {
+namespace arm {
 
 // Use u32 instead of u8, because cortex-m0 processors require nvic writes to be word aligned.
 // Combined with the -fstrict-volatile-bitfields option to GCC (and volatile attributes on
 // appropriate declarations), GCC will emit full length load and store instructions (i.e. str
 // instead of strb).
-struct nvic {
+struct NVIC {
 	struct {
 		u32 line0:1;
 		u32 line1:1;
@@ -54,3 +57,6 @@ struct nvic {
 
 	clearpending;
 };
+
+}
+}

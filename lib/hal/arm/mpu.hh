@@ -1,8 +1,11 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
 
-struct mpu {
+namespace hal {
+namespace arm {
+
+struct MPU {
   // Offset: 0x00
   struct {
     u8 separate:1;
@@ -49,3 +52,6 @@ struct mpu {
     u8 _reserved4:3;
   } attributes;
 };
+
+}
+}

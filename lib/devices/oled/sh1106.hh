@@ -3,7 +3,7 @@
 #include "gfx/font.hh"
 #include "std/assert.hh"
 #include "std/utf8.hh"
-#include "types.h"
+#include "types.hh"
 
 namespace devices {
 namespace oled {
@@ -55,15 +55,15 @@ struct SH1106: public HAL {
 	// on the specific board, this value may be different.
 	u8 start_column_address { 2 };
 	
-	enum : u8{
-		COMMAND_SETLOWCOLUMNADDRESS = 0x00,
-		COMMAND_SETHIGHCOLUMNADDRESS = 0x10,
-		COMMAND_SETSEGMENTREMAP = 0xA0,
-		COMMAND_FORCEDISPLAYON = 0xA5,
-		COMMAND_DISPLAYNORMAL = 0xA6,
-		COMMAND_DISPLAYREVERSE = 0xA7,
-		COMMAND_DISPLAYON = 0xAF,
-		COMMAND_SETPAGEADDRESS = 0xB0,
+	enum struct Command : u8{
+		SETLOWCOLUMNADDRESS = 0x00,
+		SETHIGHCOLUMNADDRESS = 0x10,
+		SETSEGMENTREMAP = 0xA0,
+		FORCEDISPLAYON = 0xA5,
+		DISPLAYNORMAL = 0xA6,
+		DISPLAYREVERSE = 0xA7,
+		DISPLAYON = 0xAF,
+		SETPAGEADDRESS = 0xB0,
 	};
 
 	struct PixelCoordinate {
@@ -74,7 +74,7 @@ struct SH1106: public HAL {
 	void init() {
 		HAL::init();
 
-		send_command(COMMAND_DISPLAYON);
+		send_command(static_cast<u8>(Command::DISPLAYON));
 	}
 
 	PixelCoordinate locate(
@@ -102,9 +102,9 @@ struct SH1106: public HAL {
 	void send_page(
 		const u8 page_i,
 		const u8 (&page)[page_size_bytes]) {
-		send_command(COMMAND_SETPAGEADDRESS | page_i);
-		send_command(COMMAND_SETLOWCOLUMNADDRESS | start_column_address);
-		send_command(COMMAND_SETHIGHCOLUMNADDRESS | 0);
+		send_command(static_cast<u8>(Command::SETPAGEADDRESS) | page_i);
+		send_command(static_cast<u8>(Command::SETLOWCOLUMNADDRESS) | start_column_address);
+		send_command(static_cast<u8>(Command::SETHIGHCOLUMNADDRESS) | 0);
 
 		send_data(page, sizeof(page));
 	}

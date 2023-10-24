@@ -1,16 +1,16 @@
 #include "main.hh"
 #include "crt.hh"
-#include "types.h"
+#include "types.hh"
 
 #include "crt.hh"
 #include "devices/epd/epd.hh"
 #include "devices/oled/sh1106.hh"
-#include "hal/arm/stm32l0538.h"
-#include "sys/isr.h"
-#include "sys/init.h"
-#include "sys/scheduler.h"
+#include "hal/arm/stm32l0538.hh"
+#include "sys/isr.hh"
+#include "sys/init.hh"
+#include "sys/scheduler.hh"
 
-#include "picture.h"
+#include "picture.hh"
 
 u32 color = 0;
 
@@ -37,7 +37,7 @@ static void epd_test() {
 }
 
 extern "C" void _start() {
-	sys_isr_uservector[5] = button_handler;
+	sys::isr::user_vector[5] = button_handler;
 
 	// For UART, configure 115200 8N1:
 	//   115200 baud rate
@@ -69,26 +69,26 @@ extern "C" void _start() {
 	mcu::DBG_APB1_FREEZE->timer6 = 1;
 
 	// Enable PA0 for input.
-	mcu::GPIO_A->mode.pin0 = GPIO_MODE_INPUT;
+	mcu::GPIO_A->mode.pin0 = hal::arm::GPIO::Mode::INPUT;
 
 	// Enable PA8, and PA9 for USART output.
 	// NOTE: It's important to set the alternate function index first, because
 	// otherwise the pin will have a short period when it is enabled, but not
 	// connected to the USART, and spurious data will be sent.
 	mcu::GPIO_A->alternate.pin8 = 4;
-	mcu::GPIO_A->mode.pin8 = GPIO_MODE_ALTERNATE;
-	mcu::GPIO_A->output_type.pin8 = GPIO_OUTPUTTYPE_PUSHPULL;
+	mcu::GPIO_A->mode.pin8 = hal::arm::GPIO::Mode::ALTERNATE;
+	mcu::GPIO_A->output_type.pin8 = hal::arm::GPIO::OutputType::PUSHPULL;
 	mcu::GPIO_A->alternate.pin9 = 4;
-	mcu::GPIO_A->mode.pin9 = GPIO_MODE_ALTERNATE;
-	mcu::GPIO_A->output_type.pin9 = GPIO_OUTPUTTYPE_PUSHPULL;
+	mcu::GPIO_A->mode.pin9 = hal::arm::GPIO::Mode::ALTERNATE;
+	mcu::GPIO_A->output_type.pin9 = hal::arm::GPIO::OutputType::PUSHPULL;
 
 	// Enable PA5 and PB4 for output.
 	// On the dev board, these correspond to the red and green LEDs.
-	mcu::GPIO_A->mode.pin5 = GPIO_MODE_OUTPUT;
-	mcu::GPIO_B->mode.pin4 = GPIO_MODE_OUTPUT;
+	mcu::GPIO_A->mode.pin5 = hal::arm::GPIO::Mode::OUTPUT;
+	mcu::GPIO_B->mode.pin4 = hal::arm::GPIO::Mode::OUTPUT;
 	
-	mcu::GPIO_B->mode.pin6 = GPIO_MODE_OUTPUT;
-	mcu::GPIO_B->output_speed.pin6 = GPIO_OUTPUTSPEED_VERYHIGH;
+	mcu::GPIO_B->mode.pin6 = hal::arm::GPIO::Mode::OUTPUT;
+	mcu::GPIO_B->output_speed.pin6 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
 
 	// TIMER6 is an APB1 peripheral, and so uses the PCLK1 clock source.
 	// The PCLK1 frequency is the prescaled HCLK frequency.
@@ -116,10 +116,11 @@ extern "C" void _start() {
 	// USART1->control2.clock_enabled = 1;
 	// These USART configs correspond to 115200 8N1.
 
-	CRT<CRTHAL> crt;
+	crt::CRT<CRTHAL> crt;
 
 	crt.print("running oled test\r\n");
-	devices::oled::SH1106<OLEDHAL, 128, 64> oled;
+	typedef devices::oled::SH1106<OLEDHAL, 128, 64> OLED;
+	OLED oled;
 	oled.init();
 	oled.clear();
 
@@ -151,20 +152,20 @@ extern "C" void _start() {
 			for (u32 i = 0; i < 10000; ++i);
 
 			mcu::GPIO_A->reset5 = 1;
-			oled.send_command(oled.COMMAND_DISPLAYREVERSE);
+			oled.send_command(static_cast<u8>(OLED::Command::DISPLAYREVERSE));
 		} else {
 			mcu::GPIO_B->set4 = 1;
 
 			for (u32 i = 0; i < 10000; ++i);
 
 			mcu::GPIO_B->reset4 = 1;
-			oled.send_command(oled.COMMAND_DISPLAYNORMAL);
+			oled.send_command(static_cast<u8>(OLED::Command::DISPLAYNORMAL));
 		}
 
 		for (u32 i = 0; i < 10001; ++i);
 	}
 }
 
-struct sys_task sys_tasks[] = {
+sys::task::Task sys_tasks[] = {
 	SYS_TASKS_END,
 };

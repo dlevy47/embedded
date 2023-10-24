@@ -1,7 +1,10 @@
-#include "scheduler.h"
+#include "scheduler.hh"
 
-#include "types.h"
-#include "hal/arm/registers.h"
+#include "types.hh"
+#include "hal/arm/registers.hh"
+
+namespace sys {
+namespace scheduler {
 
 u32 _sys_scheduler_currenttask = 0;
 
@@ -17,16 +20,16 @@ static const u32 _sys_stacksentinel_2 = 0x8BADF00D;
 static void sys_taskended() {
   // Just spin.
   while (1) {
-    sys_scheduler_yield();
+    // sys_scheduler_yield();
   }
 }
 
 // _sys_scheduler_switchstacks switches to the process stack.
 extern void _sys_scheduler_switchstacks();
 
-enum error sys_scheduler_init(
-  struct sys_scheduler* scheduler,
-  struct sys_task* tasks) {
+Error sys_scheduler_init(
+  Scheduler* scheduler,
+  task::Task* tasks) {
   // First, switch over to a PSP. Stay in privileged mode.
   _sys_scheduler_switchstacks();
   
@@ -37,7 +40,7 @@ enum error sys_scheduler_init(
   u32* stack_top = (u32*) (ld_stack_top - 256);
   
   while (tasks->descriptor) {
-    enum error err = ERROR_OK;
+    Error err;
 
     // TODO: Align the stack?
     tasks->stack_size = tasks->descriptor->desired_stack_size;
@@ -111,7 +114,7 @@ enum error sys_scheduler_init(
   // (probably the first one) and then switch to it. sys_scheduler_loop will
   // do that.
 
-  return ERROR_OK;
+  return Error::OK;
 }
 
 size_t _sys_scheduler_choosestack(size_t current_stack_top) {
@@ -126,4 +129,7 @@ void sys_scheduler_loop(
   struct sys_scheduler* scheduler) {
   while (1) {
   }
+}
+
+}
 }

@@ -1,8 +1,11 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
 
-struct scb {
+namespace hal {
+namespace arm {
+
+struct SCB {
   // Offset: 0x00
   u32 cpuid;
 
@@ -23,3 +26,6 @@ struct scb {
     u8 nmi_set:1;
   } interrupts;
 };
+
+}
+}

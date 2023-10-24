@@ -1,26 +1,29 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
 
-// sys_task_stacksize is the possible sizes for the task stack.
-enum sys_task_stacksize {
-  SYS_TASK_STACKSIZE_256B = 7,
-  SYS_TASK_STACKSIZE_512B,
-  SYS_TASK_STACKSIZE_1K,
-  SYS_TASK_STACKSIZE_2K,
-  SYS_TASK_STACKSIZE_4K,
-  SYS_TASK_STACKSIZE_8K,
-  SYS_TASK_STACKSIZE_16K,
-  SYS_TASK_STACKSIZE_32K,
-  SYS_TASK_STACKSIZE_64K,
-  SYS_TASK_STACKSIZE_128K,
-  SYS_TASK_STACKSIZE_256K,
-  SYS_TASK_STACKSIZE_512K,
+namespace sys {
+namespace task {
+
+// StackSize is the possible sizes for the task stack.
+enum struct StackSize {
+  STACKSIZE_256B = 7,
+  STACKSIZE_512B,
+  STACKSIZE_1K,
+  STACKSIZE_2K,
+  STACKSIZE_4K,
+  STACKSIZE_8K,
+  STACKSIZE_16K,
+  STACKSIZE_32K,
+  STACKSIZE_64K,
+  STACKSIZE_128K,
+  STACKSIZE_256K,
+  STACKSIZE_512K,
 };
 
-// sys_task_descriptor describes a task. Only metadata for the task is
+// Descriptor describes a task. Only metadata for the task is
 // contained here; runtime information is in struct sys_task.
-struct sys_task_descriptor {
+struct Descriptor {
   // name is the name of the task. Only used for debugging and as a key.
   const char* name;
 
@@ -33,10 +36,10 @@ struct sys_task_descriptor {
   int (*entry) ();
 };
 
-// sys_task contains runtime information about the task.
-struct sys_task {
+// Task contains runtime information about the task.
+struct Task {
   // descriptor is the metadata about this task.
-  const struct sys_task_descriptor* descriptor;
+  const struct Descriptor* descriptor;
 
   // stack_size is the actual runtime size of the task's stack.
   size_t stack_size;
@@ -51,4 +54,7 @@ struct sys_task {
 };
 
 // _sys_currenttask is the address of the descriptor of the current task.
-extern struct sys_task* _sys_currenttask;
+extern struct Task* _sys_currenttask;
+
+}
+}

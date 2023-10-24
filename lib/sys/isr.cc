@@ -1,7 +1,10 @@
-#include "isr.h"
+#include "isr.hh"
 
-#include "types.h"
-#include "sys/scheduler.h"
+#include "types.hh"
+#include "sys/scheduler.hh"
+
+namespace sys {
+namespace isr {
 
 void sys_isr_default() {
 	while(1);
@@ -19,39 +22,14 @@ static void sys_isr_hardfault() {
 	while(1);
 }
 
-struct isr_frame _sys_isr_syscall_interruptedframe = {0};
+Frame _sys_isr_syscall_interruptedframe = {0};
 
-extern void _sys_isr_syscall_jumptoframe(const struct isr_frame* frame);
-
-void _sys_isr_syscall(const u8 syscode) {
-	_sys_isr_syscall_jumptoframe(&_sys_isr_syscall_interruptedframe);
-	return;
-	/*
-	// The code provided to the SVC instruction is the byte at [[$SP + 40] - 2].
-	// 32: 16 from entry stanza, 24 from pushed stack frame (mcu.programming 2.3.6).
-	u32 code = 0;
-	asm (
-		"MOV %0, SP"
-		: "=r" (code)
-		);
-
-	if (sys_isr_syscall) {
-		// NOTE: this pointer arithmetic is fragile, and can become incorrect if this
-		// function is modified.
-		return sys_isr_syscall(* (u8*)(*(u32*)(code + 40) - 2));
-	}
-
-	sys_isr_default(); // */
-}
-
-extern void _sys_isr_syscall2();
-
-sys_isr_t sys_isr_uservector[29] = {NULL};
+ISR user_vector[29] = {nullptr};
 
 #define DEFINE_ISR(num) \
 	static void sys_isr_irq ## num() { \
-		if (sys_isr_uservector[num]) { \
-			sys_isr_uservector[num](); \
+		if (user_vector[num]) { \
+			user_vector[num](); \
 		} else { \
 			sys_isr_default(); \
 		} \
@@ -88,7 +66,7 @@ DEFINE_ISR(27);
 DEFINE_ISR(28);
 
 // Interrupt table is defined at mcu.reference 12.3.
-__attribute__((section(".isr.vector"))) sys_isr_t sys_isr_vector[44] = {
+__attribute__((section(".isr.vector"))) ISR sys_isr_vector[44] = {
 	// What would be the first interrupt (at 0x0), is really the stack top, set in the linker script.
 	sys_isr_reset,
 	sys_isr_nmi,
@@ -103,7 +81,7 @@ __attribute__((section(".isr.vector"))) sys_isr_t sys_isr_vector[44] = {
 	sys_isr_default,
 	sys_isr_reserved,
 	sys_isr_reserved,
-	sys_scheduler_contextswitch,
+	sys_isr_default, // sys_scheduler_contextswitch,
 	sys_isr_default,
 
 
@@ -138,4 +116,5 @@ __attribute__((section(".isr.vector"))) sys_isr_t sys_isr_vector[44] = {
 	sys_isr_irq28,
 };
 
-sys_isr_syscall_t sys_isr_syscall = NULL;
+}
+}

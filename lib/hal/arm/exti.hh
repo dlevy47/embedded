@@ -1,8 +1,11 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
 
-struct exti {
+namespace hal {
+namespace arm {
+
+struct EXTI {
 	// Offset: 0x00
 	struct {
 		u32 line0:1;
@@ -54,3 +57,6 @@ struct exti {
 		// Offset: 0x14;
 		pending;
 };
+
+}
+}

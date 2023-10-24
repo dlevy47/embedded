@@ -1,9 +1,12 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
+
+namespace hal {
+namespace arm {
 
 // Registers have to be written by u16s or u32s.
-struct timerx {
+struct TIMERX {
 	// Offset: 0x00
 	struct {
 		u16 enable_counter:1;
@@ -34,3 +37,6 @@ struct timerx {
 	// Offset: 0x28
 	u16 prescaler;
 };
+
+}
+}

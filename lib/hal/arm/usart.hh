@@ -1,8 +1,11 @@
 #pragma once
 
-#include "types.h"
+#include "types.hh"
 
-struct usart {
+namespace hal {
+namespace arm {
+
+struct USART {
   // Offset: 0x00
   struct {
     u32 enabled:1;
@@ -65,3 +68,6 @@ struct usart {
     u32 _reserved:24;
   };
 };
+
+}
+}
