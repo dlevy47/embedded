@@ -7,6 +7,9 @@ extern u32 ld_data_source;
 extern u32 ld_data_targetstart;
 extern u32 ld_data_targetend;
 
+extern u32 ld_init_array_start;
+extern u32 ld_init_array_end;
+
 extern u32 ld_bss_start;
 extern u32 ld_bss_end;
 
@@ -25,22 +28,39 @@ static void load_bss() {
 		*cur++ = 0;
 }
 
-char __aeabi_unwind_cpp_pr0[0];
+static void run_static_constructors() {
+	u32* start = (u32*) &ld_init_array_start;
+	const u32* end = (u32*) &ld_init_array_end;
 
-extern "C" void _start();
-
-static void _check_preconditions() {
-	// Check that integer types are the width we expect.
-	BUILD_BUG_ON(sizeof(u8) != 1);
-	BUILD_BUG_ON(sizeof(u16) != 2);
-	BUILD_BUG_ON(sizeof(u32) != 4);
+	for (; start < end; ++start) {
+		typedef void (*Constructor) ();
+		Constructor ctor = (Constructor) *start;
+		
+		ctor();
+	}
 }
+
+extern "C" void app_main();
+
+// Check that integer types are the width we expect.
+static_assert(
+	sizeof(u8) == 1,
+	"sizeof(u8) != 1");
+static_assert(
+	sizeof(u16) == 2,
+	"sizeof(u16) != 2");
+static_assert(
+	sizeof(u32) == 4,
+	"sizeof(u32) != 4");
 
 extern "C" void sys_isr_reset() {
 	load_data();
 	load_bss();
+	run_static_constructors();
 
-	_start();
+	app_main();
 
-	while (1);
+	while (true) {
+		__asm volatile("");
+	}
 }

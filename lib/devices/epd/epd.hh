@@ -18,9 +18,6 @@ struct EPD: public HAL {
   void init() {
     HAL::init();
 
-	  // Wait for a sec.
-	  for (int i = 0; i < 10000; i++) {}
-
 	  // Disable deep sleep.
 	  send_command(0x10, 0x00);
 	  // Set data direction.
@@ -144,7 +141,12 @@ struct EPD: public HAL {
     refresh();
     wait();
   }
+
+  // is_busy returns whether the EPD is busy (e.g. in a refresh cycle).
+  bool is_busy() {
+    return HAL::is_busy();
+  }
 };
 
 }
-};
+}

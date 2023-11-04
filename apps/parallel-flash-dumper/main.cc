@@ -22,7 +22,7 @@
 
 using namespace hal::arm::stm32f051r8;
 
-extern "C" void _start() {
+extern "C" void app_main() {
   // Enable peripheral clocks.
   RCC->gpio_enable.a = 1;
   RCC->gpio_enable.b = 1;

@@ -1,18 +1,8 @@
-#include "main.hh"
-#include "crt.hh"
-#include "types.hh"
-
-#include "crt.hh"
-#include "devices/epd/epd.hh"
-#include "devices/oled/sh1106.hh"
-#include "hal/arm/stm32l0538.hh"
-#include "sys/isr.hh"
-#include "sys/init.hh"
-#include "sys/scheduler.hh"
-
+#include "epd.hh"
+#include "oled.hh"
 #include "picture.hh"
 
-u32 color = 0;
+static u32 color = 0;
 
 static void button_handler() {
 	color = !color;
@@ -25,18 +15,7 @@ static void delay(u32 mibis) {
 	mcu::TIMER6->control1.one_pulse_mode = 1;
 }
 
-static void epd_test() {
-	devices::epd::EPD<EPDHAL> epd;
-	epd.init();
-
-	epd.draw_xbm1pp(
-		picture_1,
-		sizeof(picture_1) / sizeof(*picture_1));
-
-	epd.refresh_and_wait();
-}
-
-extern "C" void _start() {
+extern "C" void app_main() {
 	sys::isr::user_vector[5] = button_handler;
 
 	// For UART, configure 115200 8N1:
@@ -116,56 +95,62 @@ extern "C" void _start() {
 	// USART1->control2.clock_enabled = 1;
 	// These USART configs correspond to 115200 8N1.
 
-	crt::CRT<CRTHAL> crt;
+	_crt.print("msiclk: ", msiclk, ".\r\n");
+	_crt.print("usart1 baud rate: ", mcu::USART1->baud_rate.rate, "\r\n");
+	_crt.print("hello world\r\n");
+	_crt.print("こんにちは\r\n");
 
-	crt.print("running oled test\r\n");
-	typedef devices::oled::SH1106<OLEDHAL, 128, 64> OLED;
-	OLED oled;
-	oled.init();
-	oled.clear();
+	_crt.print("starting scheduler\r\n");
 
-	const gfx::Font* font = &gfx::fonts::Misaki;
+	// Do the tasks need a reference to the scheduler? For yield, etc
+	// Or perhaps they can be provided with one
 
-	// All the Misaki glyphs are at -1 y offset, so move base up 1 to
-	// compensate.
-	i32 base = font->point_size - 1 - 1;
-	oled.draw_text(0, base, font, "こんにちは大野夏実様");
-	base += font->point_size;
-	oled.draw_text(0, base, font, "Hello world!");
-	
-	oled.show();
-	crt.print("oled test done\r\n");
+	u32 blink_stack[400];
+	os::Task blink_task {
+		"blink",
+		blink_stack,
+		blink,
+	};
 
-	crt.print("running epd test\r\n");
-	epd_test();
-	crt.print("epd test done\r\n");
+	static_assert(
+		sizeof(blink_stack) > sizeof(devices::oled::SH1106<OLEDHAL, 128, 64>),
+		"blink_stack not big enough for oled framebuf"
+	);
 
-	crt.print("msiclk: ", msiclk, ".\r\n");
-	crt.print("usart1 baud rate: ", mcu::USART1->baud_rate.rate, "\r\n");
-	crt.print("hello world\r\n");
+	u32 epd_test_stack[400];
+	os::Task epd_test_task {
+		"epd_test",
+		epd_test_stack,
+		epd_test,
+	};
 
-	mcu::NVIC->setenable.line5 = 1;
-	while (1) {
-		if ((mcu::TIMER6->counter / 1024) % 2) {
-			mcu::GPIO_A->set5 = 1;
+	os::Task<Scheduler> tasks[] = {
+		blink_task,
+		epd_test_task,
+	};
 
-			for (u32 i = 0; i < 10000; ++i);
+	Scheduler scheduler(tasks);
 
-			mcu::GPIO_A->reset5 = 1;
-			oled.send_command(static_cast<u8>(OLED::Command::DISPLAYREVERSE));
-		} else {
-			mcu::GPIO_B->set4 = 1;
+	_crt.print("scheduler: ", &scheduler, "\r\n");
+	_crt.print("task_ended: ", &scheduler.task_ended, "\r\n");
+	_crt.print("cpu_index: ", &SchedulerHAL::cpu_index, "\r\n");
+	_crt.print("control address: ", &scheduler.control, "\r\n");
+	_crt.print("  current address: ", &scheduler.control[0].current, "\r\n");
+	_crt.print("  next address: ", &scheduler.control[0].next, "\r\n");
 
-			for (u32 i = 0; i < 10000; ++i);
-
-			mcu::GPIO_B->reset4 = 1;
-			oled.send_command(static_cast<u8>(OLED::Command::DISPLAYNORMAL));
-		}
-
-		for (u32 i = 0; i < 10001; ++i);
+	for (size_t i = 0, l = sizeof(tasks) / sizeof(*tasks); i < l; ++i) {
+		os::Task<Scheduler>* task = &tasks[i];
+		
+		_crt.print("task ", task->name, " stack ",
+						"from ", task->stack_top, " ",
+						"to ", task->stack_bottom, "\r\n");
 	}
-}
 
-sys::task::Task sys_tasks[] = {
-	SYS_TASKS_END,
-};
+	_crt.print("task ", scheduler.control[0].scheduler_task.name, " stack ",
+					 "from ", scheduler.control[0].scheduler_task.stack_top, " ",
+					 "to ", scheduler.control[0].scheduler_task.stack_bottom, "\r\n");
+
+	scheduler.run();
+
+	_crt.print("no more scheduler\r\n");
+}

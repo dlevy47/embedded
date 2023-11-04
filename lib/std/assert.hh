@@ -22,5 +22,11 @@ struct SameType: False {};
 template <typename T>
 struct SameType<T, T>: True {};
 
+inline void panic(volatile const char* message) {
+  __asm volatile("bkpt #1");
+
+  while (1);
+}
+
 }
 }

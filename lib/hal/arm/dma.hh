@@ -57,6 +57,7 @@ struct DMA {
 		u32 _reserved2;
 	};
 
+	// Offset: 0x00
 	struct {
 		u32 global_interrupt1:1;
 		u32 transfer_complete1:1;

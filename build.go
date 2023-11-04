@@ -82,7 +82,7 @@ func (STM32L) CFlags() []string {
 
 func (l STM32L) CCFlags() []string {
 	flags := append(l.CFlags(), defaultCFlags()...)
-	return append(flags, "--std=c++20")
+	return append(flags, "--std=c++20", "-fno-exceptions")
 }
 
 func (l STM32L) CompileFlags(source string, target Target) string {

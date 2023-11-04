@@ -5,15 +5,22 @@
 namespace sys {
 namespace isr {
 
-enum struct IRQ {
+enum struct IRQ: u32 {
+	PENDSV = 13,
 	IRQ0 = 15,
 };
 
-extern "C" void sys_isr_default();
+extern void sys_isr_default();
 extern "C" void sys_isr_reserved();
+
+// The app.ld linker script specifies sys_isr_reset as the entry point, so 
+// we need to extern "C" to avoid name mangling.
 extern "C" void sys_isr_reset();
 
 typedef void (*ISR)();
+
+// sys_vector contains the IRQ vector table for the processor.
+extern "C" ISR sys_sys_vector[15];
 
 // user_vector contains user code to run in case of IRQs.
 extern ISR user_vector[29];

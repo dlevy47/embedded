@@ -1,7 +1,6 @@
 #include "isr.hh"
 
 #include "types.hh"
-#include "sys/scheduler.hh"
 
 namespace sys {
 namespace isr {
@@ -11,7 +10,9 @@ void sys_isr_default() {
 }
 
 void sys_isr_reserved() {
-	while(1);
+	while(1) {
+		__asm("bkpt #1");
+	}
 }
 
 static void sys_isr_nmi() {
@@ -19,7 +20,9 @@ static void sys_isr_nmi() {
 }
 
 static void sys_isr_hardfault() {
-	while(1);
+	while(1) {
+		__asm("bkpt #1");
+	}
 }
 
 Frame _sys_isr_syscall_interruptedframe = {0};
@@ -65,8 +68,23 @@ DEFINE_ISR(26);
 DEFINE_ISR(27);
 DEFINE_ISR(28);
 
+// #define DEFINE_SYS_ISR(num) \
+// 	static void sys_isr_sys_irq ## num() { \
+// 		if (sys_vector[num]) { \
+// 			sys_vector[num](); \
+// 		} else { \
+// 			sys_isr_reserved(); \
+// 		} \
+// 	}
+//
+// DEFINE_SYS_ISR(13);
+
+extern "C" void sys_isr_sys_irq13();
+
+ISR sys_sys_vector[15] = {0};
+
 // Interrupt table is defined at mcu.reference 12.3.
-__attribute__((section(".isr.vector"))) ISR sys_isr_vector[44] = {
+__attribute__((section(".isr.vector"))) ISR _interrupt_table[44] = {
 	// What would be the first interrupt (at 0x0), is really the stack top, set in the linker script.
 	sys_isr_reset,
 	sys_isr_nmi,
@@ -81,7 +99,7 @@ __attribute__((section(".isr.vector"))) ISR sys_isr_vector[44] = {
 	sys_isr_default,
 	sys_isr_reserved,
 	sys_isr_reserved,
-	sys_isr_default, // sys_scheduler_contextswitch,
+	sys_isr_sys_irq13,
 	sys_isr_default,
 
 

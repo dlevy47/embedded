@@ -42,6 +42,16 @@ SECTIONS {
     ld_data_targetend = .;
   } >RAM AT >FLASH
 
+  .init_array ALIGN(4) : {
+    ld_init_array_start = .;
+    
+    *(.init_array)
+    *(.init_array*)
+    . = ALIGN(4);
+
+    ld_init_array_end = .;
+  } >FLASH
+
 
   .bss ALIGN(4) (NOLOAD) : {
     ld_bss_start = .;
