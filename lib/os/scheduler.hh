@@ -9,7 +9,7 @@ namespace os {
 
 struct NOPDebug {
   template <typename ...Args>
-  int print(Args... args) {
+  int print(Args... args) volatile {
     return 0;
   }
 };
@@ -91,12 +91,20 @@ struct Scheduler: public HAL, public Debug {
       void (HAL::*)(Scheduler*, Task*)>::value,
       "HAL::initialize_task missing");
 
-  // HAL::is_stack_corrupted should check the task's stack for corruption.
+  // HAL::check_stack_corruption should check the task's stack for corruption.
   static_assert(
     std::assert::SameType<
-    decltype(&HAL::is_stack_corrupted),
-      bool (HAL::*)(Task*)>::value,
-      "HAL::is_stack_corrupted missing");
+    decltype(&HAL::check_stack_corruption),
+      void (HAL::*)(Task*) volatile>::value,
+      "HAL::check_stack_corruption missing");
+
+  // HAL::check_stack_watermark should compute the watermark level for the
+  // task, reporting it if desired.
+  static_assert(
+    std::assert::SameType<
+    decltype(&HAL::check_stack_watermark),
+      void (HAL::*)(Task*) volatile>::value,
+      "HAL::check_stack_watermark missing");
 
   // control contains the per-cpu information needed for this Scheduler
   // to operate.
@@ -191,15 +199,14 @@ struct Scheduler: public HAL, public Debug {
     HAL::trigger_pendsv();
   }
 
-  void yield() {
+  void yield() volatile {
     Control* control =
       &this->control[HAL::cpu_index().index];
 
-    // First, check for stack corruption.
+    // First, check for stack corruption and watermarks.
     for (size_t i = 0; i < control->count; ++i) {
-      if (HAL::is_stack_corrupted(&control->tasks[i])) {
-        std::assert::panic("stack corruption");
-      }
+      HAL::check_stack_corruption(&control->tasks[i]);
+      HAL::check_stack_watermark(&control->tasks[i]);
     }
 
     bool all_ended = true;
@@ -244,7 +251,7 @@ struct Scheduler: public HAL, public Debug {
   }
 
   static void task_ended(Error err) {
-    Control* control =
+    volatile Control* control =
       &Scheduler::control[HAL::cpu_index().index];
     
     if (err) {
@@ -254,7 +261,9 @@ struct Scheduler: public HAL, public Debug {
     
     control->current->ended = true;
     control->self->yield();
-    while (true);
+    while (true) {
+      __asm volatile ("");
+    }
   }
 
   Scheduler(const Scheduler&) = delete;

@@ -8,6 +8,9 @@ namespace crt {
 
 template <typename HAL>
 struct CRT: public crt::print::Print<HAL> {
+  CRT() = default;
+  CRT(const CRT&) = delete;
+  CRT(CRT&&) = delete;
 };
 
 }

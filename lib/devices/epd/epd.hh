@@ -47,8 +47,6 @@ struct EPD: public HAL {
 	  send_command(60, 0x64);
 	  // Write LUT something
 	  send_command(50, epd_lut, sizeof(epd_lut));
-
-	  refresh_and_wait();
   }
 
   // send_data sends a chunk of data using DMA.

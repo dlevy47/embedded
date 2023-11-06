@@ -117,7 +117,7 @@ extern "C" void app_main() {
 		"blink_stack not big enough for oled framebuf"
 	);
 
-	u32 epd_test_stack[400];
+	u32 epd_test_stack[300];
 	os::Task epd_test_task {
 		"epd_test",
 		epd_test_stack,
@@ -131,24 +131,17 @@ extern "C" void app_main() {
 
 	Scheduler scheduler(tasks);
 
-	_crt.print("scheduler: ", &scheduler, "\r\n");
-	_crt.print("task_ended: ", &scheduler.task_ended, "\r\n");
-	_crt.print("cpu_index: ", &SchedulerHAL::cpu_index, "\r\n");
-	_crt.print("control address: ", &scheduler.control, "\r\n");
-	_crt.print("  current address: ", &scheduler.control[0].current, "\r\n");
-	_crt.print("  next address: ", &scheduler.control[0].next, "\r\n");
-
 	for (size_t i = 0, l = sizeof(tasks) / sizeof(*tasks); i < l; ++i) {
 		os::Task<Scheduler>* task = &tasks[i];
 		
 		_crt.print("task ", task->name, " stack ",
 						"from ", task->stack_top, " ",
-						"to ", task->stack_bottom, "\r\n");
+						"to ", task->stack_limit, "\r\n");
 	}
 
 	_crt.print("task ", scheduler.control[0].scheduler_task.name, " stack ",
 					 "from ", scheduler.control[0].scheduler_task.stack_top, " ",
-					 "to ", scheduler.control[0].scheduler_task.stack_bottom, "\r\n");
+					 "to ", scheduler.control[0].scheduler_task.stack_limit, "\r\n");
 
 	scheduler.run();
 

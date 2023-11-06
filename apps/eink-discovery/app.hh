@@ -45,13 +45,15 @@ typedef crt::CRT<CRTHAL> CRT;
 
 inline CRT _crt;
 
+template <bool WatermarksEnabled>
 struct SchedulerHAL {
-	typedef os::Scheduler<SchedulerHAL, CRT> Scheduler;
+	typedef os::Scheduler<SchedulerHAL> Scheduler;
 	typedef os::Task<Scheduler> Task;
 	
 	static const size_t cpu_count = 1;
 
 	static const u32 SENTINEL = 0xDEADBEEF;
+	static const u32 WATERMARK = 0xCBCBCBCB;
 
 	static os::CPUIndex cpu_index() {
 		return os::CPUIndex{0};
@@ -93,32 +95,52 @@ struct SchedulerHAL {
 		);
 	}
 
-	bool is_stack_corrupted(Task* task) {
-		if (*(task->stack_bottom - 1) != SENTINEL ||
-			*(task->stack_bottom - 2) != SENTINEL) {
-			return true;
+	void check_stack_corruption(Task* task) volatile {
+		if (task->stack_limit[0] != SENTINEL ||
+			task->stack_limit[1] != SENTINEL) {
+			std::assert::panic("stack corruption");
 		}
+	}
 
-		return false;
+	void check_stack_watermark(Task* task) volatile {
+		if (WatermarksEnabled) {
+			size_t watermarked = 0;
+			for (; watermarked < task->stack_size; ++watermarked) {
+				if (task->stack_limit[watermarked] != WATERMARK) {
+					break;
+				}
+			}
+
+			size_t usage_words = task->stack_size - watermarked;
+			size_t usage = usage_words * sizeof(u32);
+
+			_crt.print("[SchedulerHAL]: task ", task->name, " watermark: ",
+							"0x", crt::print::Hex{usage}, " (", usage, ") bytes, "
+							"0x", crt::print::Hex{usage_words}, " (", usage_words, ") words\r\n");
+		}
 	}
 
 	void initialize_task(
 		Scheduler* scheduler,
 		Task* task) {
-		u32* stack_top = task->stack_top;
+		volatile u32* stack_top = task->stack_top;
+
+		if (WatermarksEnabled) {
+			volatile u32* cur = stack_top;
+			for (size_t i = 0; i < task->stack_size; ++i) {
+				--cur;
+				*cur = WATERMARK;
+			}
+		}
 		
     // TODO: Align the stack?
     // stack_top contains the current top of this task's stack, which is also
     // the bottom of the stack (because it's empty).
-    task->stack_bottom = (u32*) stack_top;
+    task->stack_limit = stack_top - task->stack_size;
 
     // Initialize this task's stack. Start with the sentinels:
-    //   [ stack sentinel 1 ]
-    //   [ stack sentinel 2 ]  <-- stack_top
-    --stack_top;
-    *stack_top = SENTINEL;
-    --stack_top;
-    *stack_top = SENTINEL;
+    task->stack_limit[0] = SENTINEL;
+    task->stack_limit[1] = SENTINEL;
 
     // Next, push the basic stack frame, as would have been pushed by the mcu
     // upon exception entry.
@@ -171,4 +193,4 @@ struct SchedulerHAL {
 	}
 };
 
-typedef os::Scheduler<SchedulerHAL, CRT> Scheduler;
+typedef os::Scheduler<SchedulerHAL<false>> Scheduler;
