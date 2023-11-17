@@ -14,7 +14,7 @@ struct Task {
   // stack_size is the size of this task's stack, in words.
   volatile size_t stack_size;
 
-  volatile u32* stack_limit;
+  volatile u32* const stack_limit;
   
   const char* name;
 
@@ -30,6 +30,7 @@ struct Task {
     name(name),
     stack_top(stack + N),
     stack_size(N),
+    stack_limit(stack),
     entry(entry) {}
 
   Task(
@@ -37,6 +38,7 @@ struct Task {
     name(name),
     stack_top(nullptr),
     stack_size(0),
+    stack_limit(nullptr),
     entry(nullptr) {}
 };
 

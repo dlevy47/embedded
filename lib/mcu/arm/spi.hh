@@ -2,7 +2,7 @@
 
 #include "types.hh"
 
-namespace hal {
+namespace mcu {
 namespace arm {
 
 struct SPI {

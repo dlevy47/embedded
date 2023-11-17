@@ -1,12 +1,12 @@
 #pragma once
 
 #include "crt.hh"
-#include "hal/arm/stm32l0538.hh"
+#include "mcu/arm/stm32l0538.hh"
 #include "os/scheduler.hh"
 #include "std/assert.hh"
 #include "std/utf8.hh"
 
-namespace mcu = hal::arm::stm32l0538;
+using MCU = mcu::arm::STM32L0538;
 
 struct CRTHAL {
 	int print_codepoint(u32 x) {
@@ -18,9 +18,9 @@ struct CRTHAL {
 		}
 		
 		for (size_t i = 0; i < count; ++i) {
-			while (!mcu::USART1->status.transmit_empty);
+			while (!MCU::USART1->status.transmit_empty);
 
-			mcu::USART1->transmit = bytes[i];
+			MCU::USART1->transmit = bytes[i];
 		}
 		
 		return 0;
@@ -55,16 +55,18 @@ struct SchedulerHAL {
 	static const u32 SENTINEL = 0xDEADBEEF;
 	static const u32 WATERMARK = 0xCBCBCBCB;
 
+	size_t watermark_display_counter { 0 };
+
 	static os::CPUIndex cpu_index() {
 		return os::CPUIndex{0};
 	}
 
 	static void trigger_pendsv() {
-		mcu::SCB->interrupts.pendsv_set = 1;
+		MCU::SCB->interrupts.pendsv_set = 1;
 	}
 	
 	void lower_pendsv_priority() {
-		mcu::SCB->priority3.pendsv = 255;
+		MCU::SCB->priority3.pendsv = 255;
 	}
 	
 	__attribute__((naked)) void switch_to_process_stack() {
@@ -104,7 +106,17 @@ struct SchedulerHAL {
 
 	void check_stack_watermark(Task* task) volatile {
 		if (WatermarksEnabled) {
-			size_t watermarked = 0;
+			watermark_display_counter = watermark_display_counter + 1;
+
+			if (watermark_display_counter < 30) {
+				return;
+			}
+
+			watermark_display_counter = 0;
+			
+			// Start at the third byte because the first two are corruption
+			// sentinels.
+			size_t watermarked = 2;
 			for (; watermarked < task->stack_size; ++watermarked) {
 				if (task->stack_limit[watermarked] != WATERMARK) {
 					break;
@@ -126,17 +138,14 @@ struct SchedulerHAL {
 		volatile u32* stack_top = task->stack_top;
 
 		if (WatermarksEnabled) {
-			volatile u32* cur = stack_top;
+			volatile u32* cur = task->stack_limit;
 			for (size_t i = 0; i < task->stack_size; ++i) {
-				--cur;
+				++cur;
 				*cur = WATERMARK;
 			}
 		}
 		
     // TODO: Align the stack?
-    // stack_top contains the current top of this task's stack, which is also
-    // the bottom of the stack (because it's empty).
-    task->stack_limit = stack_top - task->stack_size;
 
     // Initialize this task's stack. Start with the sentinels:
     task->stack_limit[0] = SENTINEL;
@@ -193,4 +202,4 @@ struct SchedulerHAL {
 	}
 };
 
-typedef os::Scheduler<SchedulerHAL<false>> Scheduler;
+typedef os::Scheduler<SchedulerHAL<true>> Scheduler;

@@ -2,11 +2,14 @@
 
 #include "types.hh"
 
-namespace hal {
+namespace mcu {
 namespace arm {
 
-struct EXTI {
-	// Offset: 0x00
+// Use u32 instead of u8, because cortex-m0 processors require nvic writes to be word aligned.
+// Combined with the -fstrict-volatile-bitfields option to GCC (and volatile attributes on
+// appropriate declarations), GCC will emit full length load and store instructions (i.e. str
+// instead of strb).
+struct NVIC {
 	struct {
 		u32 line0:1;
 		u32 line1:1;
@@ -40,22 +43,19 @@ struct EXTI {
 		u32 line29:1;
 		u32 line30:1;
 		u32 line31:1;
-	} interrupt,
+	} setenable,
 
-		// Offset: 0x04
-		event,
+	_padding0[0x1F],
 
-		// Offset: 0x08
-		rising,
+	clearenable,
 
-		// Offset: 0x0C
-		falling,
+	_padding1[0x1F],
 
-		// Offset: 0x10
-		software,
+	setpending,
 
-		// Offset: 0x14;
-		pending;
+	_padding2[0x1F],
+
+	clearpending;
 };
 
 }

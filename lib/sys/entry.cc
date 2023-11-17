@@ -1,7 +1,6 @@
 #include "types.hh"
 
 #include "isr.hh"
-#include "hal/arm/registers.hh"
 
 extern u32 ld_data_source;
 extern u32 ld_data_targetstart;
@@ -60,6 +59,8 @@ extern "C" void sys_isr_reset() {
 
 	app_main();
 
+  // This loop must include an empty __asm statement so that the compiler
+  // doesn't optimize it away.
 	while (true) {
 		__asm volatile("");
 	}

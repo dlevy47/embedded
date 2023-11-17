@@ -18,19 +18,19 @@
 //   PA12 - flash Read Enable
 //   PA15 - flash Write Enable
 //   PB0 - flash Busy
-#include "hal/arm/stm32f051r8.hh"
+#include "mcu/arm/stm32f051r8.hh"
 
-using namespace hal::arm::stm32f051r8;
+using MCU = mcu::arm::STM32F051R8;
 
 extern "C" void app_main() {
   // Enable peripheral clocks.
-  RCC->gpio_enable.a = 1;
-  RCC->gpio_enable.b = 1;
-  RCC->gpio_enable.c = 1;
-  RCC->gpio_enable.d = 1;
-  RCC->gpio_enable.e = 1;
-  RCC->gpio_enable.f = 1;
-  RCC->ahb_enable.dma = 1;
-  RCC->ahb_enable.dma2 = 1;
-	RCC->apb2_enable.usart1 = 1;
+  MCU::RCC->gpio_enable.a = 1;
+  MCU::RCC->gpio_enable.b = 1;
+  MCU::RCC->gpio_enable.c = 1;
+  MCU::RCC->gpio_enable.d = 1;
+  MCU::RCC->gpio_enable.e = 1;
+  MCU::RCC->gpio_enable.f = 1;
+  MCU::RCC->ahb_enable.dma = 1;
+  MCU::RCC->ahb_enable.dma2 = 1;
+	MCU::RCC->apb2_enable.usart1 = 1;
 }

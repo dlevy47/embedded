@@ -2,7 +2,7 @@
 
 #include "types.hh"
 
-namespace hal {
+namespace mcu {
 namespace arm {
 
 struct AHB {
@@ -28,9 +28,7 @@ struct APB2 {
 	u32 _padding3:17;
 };
 
-#define MCU_DECLARE_REGISTER(name, type) extern volatile type* const name
-
-#define MCU_DEFINE_REGISTER(address, name, type) volatile type* const name = (volatile type* const) address
+#define MCU_DEFINE_REGISTER(address, name, type) inline static volatile type* const name = (volatile type* const) address
 
 }
 }

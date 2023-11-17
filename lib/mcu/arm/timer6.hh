@@ -2,7 +2,7 @@
 
 #include "types.hh"
 
-namespace hal {
+namespace mcu {
 namespace arm {
 
 // Registers have to be written by u16s or u32s.

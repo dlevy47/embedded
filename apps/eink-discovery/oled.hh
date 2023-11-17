@@ -15,35 +15,35 @@ struct OLEDHAL {
 		// SPI2_MOSI: PB15
 		// RES: PB14
 
-		mcu::GPIO_B->mode.pin12 = hal::arm::GPIO::Mode::ALTERNATE; // OLED CS
+		MCU::GPIO_B->mode.pin12 = mcu::arm::GPIO::Mode::ALTERNATE; // OLED CS
 
-		mcu::GPIO_B->mode.pin7 = hal::arm::GPIO::Mode::OUTPUT; // OLED D/C
-		mcu::GPIO_B->output_speed.pin7 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
+		MCU::GPIO_B->mode.pin7 = mcu::arm::GPIO::Mode::OUTPUT; // OLED D/C
+		MCU::GPIO_B->output_speed.pin7 = mcu::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin13 = hal::arm::GPIO::Mode::ALTERNATE; // OLED SCK
-		mcu::GPIO_B->pull.pin13 = 1;
-		mcu::GPIO_B->output_speed.pin13 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
+		MCU::GPIO_B->mode.pin13 = mcu::arm::GPIO::Mode::ALTERNATE; // OLED SCK
+		MCU::GPIO_B->pull.pin13 = 1;
+		MCU::GPIO_B->output_speed.pin13 = mcu::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin15 = hal::arm::GPIO::Mode::ALTERNATE; // OLED MOSI
-		mcu::GPIO_B->pull.pin15 = 2;
-		mcu::GPIO_B->output_speed.pin15 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
+		MCU::GPIO_B->mode.pin15 = mcu::arm::GPIO::Mode::ALTERNATE; // OLED MOSI
+		MCU::GPIO_B->pull.pin15 = 2;
+		MCU::GPIO_B->output_speed.pin15 = mcu::arm::GPIO::OutputSpeed::VERYHIGH;
 
-		mcu::GPIO_B->mode.pin14 = hal::arm::GPIO::Mode::OUTPUT; // OLED Reset
-		mcu::GPIO_B->output_speed.pin14 = hal::arm::GPIO::OutputSpeed::VERYHIGH;
+		MCU::GPIO_B->mode.pin14 = mcu::arm::GPIO::Mode::OUTPUT; // OLED Reset
+		MCU::GPIO_B->output_speed.pin14 = mcu::arm::GPIO::OutputSpeed::VERYHIGH;
 		
-		mcu::GPIO_B->reset14 = 1;
+		MCU::GPIO_B->reset14 = 1;
 
-		mcu::GPIO_B->set14 = 1;
+		MCU::GPIO_B->set14 = 1;
 	}
 
 	void set_command() {
 		// D/C low.
-		mcu::GPIO_B->reset7 = 1;
+		MCU::GPIO_B->reset7 = 1;
 	}
 
 	void set_data() {
 		// D/C high.
-		mcu::GPIO_B->set7 = 1;
+		MCU::GPIO_B->set7 = 1;
 	}
 
 	void send(
@@ -70,30 +70,33 @@ inline Error blink(Scheduler* scheduler) {
 	oled.draw_text(0, base, font, "Hello world!");
 	
 	oled.show();
-	_crt.print("oled test done\r\n");
 	
-	mcu::NVIC->setenable.line5 = 1;
+	MCU::NVIC->setenable.line5 = 1;
 	for (size_t i = 0; i < 60; ++i) {
-		if ((mcu::TIMER6->counter / 1024) % 2) {
-			mcu::GPIO_A->set5 = 1;
+		if ((MCU::TIMER6->counter / 1024) % 2) {
+			MCU::GPIO_A->set5 = 1;
 
 			for (u32 i = 0; i < 10000; ++i);
 
-			mcu::GPIO_A->reset5 = 1;
+			MCU::GPIO_A->reset5 = 1;
 			oled.send_command(static_cast<u8>(OLED::Command::DISPLAYREVERSE));
+			_crt.print("display reverse\r\n");
 		} else {
-			mcu::GPIO_B->set4 = 1;
+			MCU::GPIO_B->set4 = 1;
 
 			for (u32 i = 0; i < 10000; ++i);
 
-			mcu::GPIO_B->reset4 = 1;
+			MCU::GPIO_B->reset4 = 1;
 			oled.send_command(static_cast<u8>(OLED::Command::DISPLAYNORMAL));
+			_crt.print("display normal\r\n");
 		}
 
 		for (u32 i = 0; i < 10001; ++i);
 
 		scheduler->yield();
 	}
+	
+	_crt.print("oled test done\r\n");
 	
 	return Error{};
 }

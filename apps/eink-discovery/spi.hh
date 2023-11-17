@@ -5,8 +5,8 @@
 template <typename DMAChannelError>
 inline void spi_send(
 	DMAChannelError channel_error,
-	volatile hal::arm::DMA::Channel* channel,
-	volatile hal::arm::SPI* spi,
+	volatile mcu::arm::DMA::Channel* channel,
+	volatile mcu::arm::SPI* spi,
 	const u8* data,
 	u16 len) {
 	// Non-DMA path:
@@ -78,12 +78,12 @@ inline void spi1_send(
 	const u8* data,
 	u16 len) {
 	// Select the SPI1 functionality on DMA channel 3.
-	mcu::DMA->selection.channel3 = hal::arm::DMA::Channel::Selection::SELECTION_1;
+	MCU::DMA->selection.channel3 = mcu::arm::DMA::Channel::Selection::SELECTION_1;
 	
 	spi_send(
-		[] {return (bool) mcu::DMA->status.transfer_error3;},
-		&mcu::DMA->channel3,
-		mcu::SPI1,
+		[] {return (bool) MCU::DMA->status.transfer_error3;},
+		&MCU::DMA->channel3,
+		MCU::SPI1,
 		data,
 		len);
 }
@@ -92,12 +92,12 @@ inline void spi2_send(
 	const u8* data,
 	u16 len) {
 	// Select the SPI2 functionality on DMA channel 7.
-	mcu::DMA->selection.channel7 = hal::arm::DMA::Channel::Selection::SELECTION_2;
+	MCU::DMA->selection.channel7 = mcu::arm::DMA::Channel::Selection::SELECTION_2;
 	
 	spi_send(
-		[] {return (bool) mcu::DMA->status.transfer_error7;},
-		&mcu::DMA->channel7,
-		mcu::SPI2,
+		[] {return (bool) MCU::DMA->status.transfer_error7;},
+		&MCU::DMA->channel7,
+		MCU::SPI2,
 		data,
 		len);
 }
