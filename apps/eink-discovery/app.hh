@@ -45,7 +45,12 @@ typedef crt::CRT<CRTHAL> CRT;
 
 inline CRT _crt;
 
-template <bool WatermarksEnabled>
+enum struct Watermarks: bool {
+	Enabled = true,
+	Disabled = false,
+};
+
+template <Watermarks WatermarksEnabled>
 struct SchedulerHAL {
 	typedef os::Scheduler<SchedulerHAL> Scheduler;
 	typedef os::Task<Scheduler> Task;
@@ -56,6 +61,11 @@ struct SchedulerHAL {
 	static const u32 WATERMARK = 0xCBCBCBCB;
 
 	size_t watermark_display_counter { 0 };
+
+	// SchedulerHAL enables the MPU. A base region encompassing all memory is
+	// configured first.
+	SchedulerHAL() {
+	}
 
 	static os::CPUIndex cpu_index() {
 		return os::CPUIndex{0};
@@ -97,15 +107,15 @@ struct SchedulerHAL {
 		);
 	}
 
-	void check_stack_corruption(Task* task) volatile {
+	void check_stack_corruption(const Task* const task) volatile {
 		if (task->stack_limit[0] != SENTINEL ||
 			task->stack_limit[1] != SENTINEL) {
 			std::assert::panic("stack corruption");
 		}
 	}
 
-	void check_stack_watermark(Task* task) volatile {
-		if (WatermarksEnabled) {
+	void check_stack_watermark(const Task* const task) volatile {
+		if (static_cast<bool>(WatermarksEnabled)) {
 			watermark_display_counter = watermark_display_counter + 1;
 
 			if (watermark_display_counter < 30) {
@@ -137,7 +147,7 @@ struct SchedulerHAL {
 		Task* task) {
 		volatile u32* stack_top = task->stack_top;
 
-		if (WatermarksEnabled) {
+		if (static_cast<bool>(WatermarksEnabled)) {
 			volatile u32* cur = task->stack_limit;
 			for (size_t i = 0; i < task->stack_size; ++i) {
 				++cur;
@@ -202,4 +212,4 @@ struct SchedulerHAL {
 	}
 };
 
-typedef os::Scheduler<SchedulerHAL<true>> Scheduler;
+typedef os::Scheduler<SchedulerHAL<Watermarks::Enabled>> Scheduler;

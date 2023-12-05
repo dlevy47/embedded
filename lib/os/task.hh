@@ -14,6 +14,7 @@ struct Task {
   // stack_size is the size of this task's stack, in words.
   volatile size_t stack_size;
 
+  // stack_limit is the lowest address this stack can have.
   volatile u32* const stack_limit;
   
   const char* name;

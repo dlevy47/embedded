@@ -152,18 +152,20 @@ struct Scheduler: public HAL, public Debug {
       "HAL::initialize_task missing");
 
   // HAL::check_stack_corruption should check the task's stack for corruption.
+  // This can be a no-op.
   static_assert(
     std::assert::SameType<
     decltype(&HAL::check_stack_corruption),
-      void (HAL::*)(Task*) volatile>::value,
+      void (HAL::*)(const Task* const) volatile>::value,
       "HAL::check_stack_corruption missing");
 
   // HAL::check_stack_watermark should compute the watermark level for the
   // task, reporting it if desired.
+  // This can be a no-op.
   static_assert(
     std::assert::SameType<
     decltype(&HAL::check_stack_watermark),
-      void (HAL::*)(Task*) volatile>::value,
+      void (HAL::*)(const Task* const) volatile>::value,
       "HAL::check_stack_watermark missing");
 
   // control contains the per-cpu information needed for this Scheduler
