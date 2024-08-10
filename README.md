@@ -1,5 +1,11 @@
 # Debugging
 
+## OpenOCD
+
+```
+$ openocd -f interface/stlink-v2.cfg -f target/stm32l0.cfg
+```
+
 ## On Apple Silicon MacOS
 
 `gdb` has not yet been ported to Apple Silicon Mac devices. `lldb` exists and supports the GDB remote server protocol, but is not really fully compatible with `openocd`, nor is the experience ergonomic.
@@ -24,9 +30,9 @@ Run it:
 
 ```
 $ docker run --rm -it \
-    --mount type=bind,source=$(pwd),target=/host
-    -w /host
-    gdb-docker /host/build/eink-discovery
+    --mount type=bind,source=$(pwd),target=/host \
+    -w /host \
+    gdb-docker /host/build/eink-discovery.stm32l.exe
 ```
 
 Once inside gdb, connect to a running `openocd`:
