@@ -76,6 +76,10 @@ struct Print: public HAL {
 
   template <typename T, typename... Args>
   int print(Hex<T> h, Args... args) {
+    static_assert(
+      sizeof(h) <= sizeof(u32),
+      "print does not support more than 4 byte hex integers");
+
     u32 u = h.value;
     
     u32 div = 1;
