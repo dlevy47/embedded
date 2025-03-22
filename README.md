@@ -1,12 +1,16 @@
-# Debugging
+# embedded
 
-## OpenOCD
+`embedded` contains explorations in bare metal embedded programming.
+
+## Debugging
+
+### OpenOCD
 
 ```
 $ openocd -f interface/stlink-v2.cfg -f target/stm32l0.cfg
 ```
 
-## On Apple Silicon MacOS
+### On Apple Silicon MacOS
 
 `gdb` has not yet been ported to Apple Silicon Mac devices. `lldb` exists and supports the GDB remote server protocol, but is not really fully compatible with `openocd`, nor is the experience ergonomic.
 
